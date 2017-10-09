@@ -14,6 +14,7 @@ if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
 document.addEventListener('DOMContentLoaded', () => {
 
   const hash = location.hash ? queryString.parse(location.hash) : {};
+  if (!hash.model && location.search) hash.model = location.search.substr(1);
 
   let viewer;
   let viewerEl;
@@ -26,13 +27,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const downloadBtnEl = document.querySelector('#download-btn');
   downloadBtnEl.addEventListener('click', function () {
-    const zip = new JSZip();
-    files.forEach((file, path) => {
-      zip.file(path, file);
-    });
-    zip.generateAsync({type: 'blob'}).then((content) => {
-      FileSaver.saveAs(content, `${rootName}.zip`);
-    });
+    if (window.contentBinary) {
+        FileSaver.saveAs(new Blob([new Uint8Array(window.contentBinary)], {type: 'model/gltf.binary'}), `output.glb`);
+    }
+  });
+  const uploadBtnEl = document.querySelector('#upload-btn');
+  uploadBtnEl.addEventListener('click', function () {
+	console.warn( 'UPLOAD...' );
   });
 
   const dropEl = document.querySelector('.dropzone');
@@ -61,6 +62,23 @@ document.addEventListener('DOMContentLoaded', () => {
       if (typeof rootFile === 'object') {
         URL.revokeObjectURL(fileURL);
       }
+
+      if (!window.contentBinary) {
+        console.warn('NOT BINARY');
+      }
+      if (window.contentBinary) {
+        if (fileMap.size) {
+          files = fileMap;
+          rootName = rootFile.name.match(/([^\/]+)\.(gltf|glb)$/)[1];
+          document.title = rootName;
+        }
+        else if (typeof rootFile === 'string') {
+          rootName = rootFile.match(/([^\/]+)\.(gltf|glb)$/)[1];
+          document.title = rootName;
+        }
+        downloadBtnEl.style.display = null;
+        uploadBtnEl.style.display = null;
+      }
     };
 
     spinnerEl.style.display = '';
@@ -71,12 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error(error);
         cleanup();
       });
-
-    if (fileMap.size) {
-      files = fileMap;
-      rootName = rootFile.name.match(/([^\/]+)\.(gltf|glb)$/)[1];
-      // downloadBtnEl.style.display = null;
-    }
   }
 
   if (hash.kiosk) {

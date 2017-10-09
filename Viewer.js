@@ -140,7 +140,8 @@ module.exports = class Viewer {
 
         const scene = gltf.scene || gltf.scenes[0];
         const clips = gltf.animations || [];
-        this.setContent(scene, clips);
+        const contentBinary = gltf.binaryData;
+        this.setContent(scene, clips, contentBinary);
 
         blobURLs.forEach(URL.revokeObjectURL);
 
@@ -155,8 +156,9 @@ module.exports = class Viewer {
   /**
    * @param {THREE.Object3D} object
    * @param {Array<THREE.AnimationClip} clips
+   * @param {Blob} contentBinary
    */
-  setContent ( object, clips ) {
+  setContent ( object, clips, contentBinary ) {
 
     this.clear();
 
@@ -186,6 +188,7 @@ module.exports = class Viewer {
 
     this.scene.add(object);
     this.content = object;
+    this.contentBinary = contentBinary;
 
     this.state.addLights = true;
     this.content.traverse((node) => {
@@ -202,7 +205,8 @@ module.exports = class Viewer {
     this.updateDisplay();
 
     window.content = this.content;
-    console.info('[glTF Viewer] THREE.Scene exported as `window.content`.');
+    window.contentBinary = this.contentBinary;
+    console.info('[glTF Viewer] THREE.Scene exported as `window.content`, binary blob version as `window.contentBinary`.');
 
   }
 

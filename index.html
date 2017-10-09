@@ -2,7 +2,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>glTF Viewer</title>
+  <title>glTF</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="author" content="Don McCurdy">
   <meta name="description" content="Drag-and-drop preview tool for glTF 2.0 3D models.">
@@ -14,27 +14,28 @@
 </head>
 <body>
   <header>
-    <h1>glTF Viewer</h1>
+    <h1>glTF</h1>
     <span class="separator layout-md"> | </span>
-    <a class="item layout-md" target="_blank" href="https://github.com/mrdoob/three.js/tree/r86">
-      three.js r87
+    <a class="item layout-md" target="_blank" href="https://github.com/mrdoob/three.js/tree/r87">
+      three.js<br>r87
     </a>
     <span class="separator layout-md"> | </span>
     <a class="item layout-md" target="_blank" href="https://github.com/mrdoob/three.js/blob/f51e228/examples/js/loaders/GLTFLoader.js">
-      THREE.GLTFLoader#f51e228
-    </a>
-    <span class="separator"> | </span>
-    <a class="item" target="_blank" href="https://github.com/donmccurdy/three-gltf-viewer/issues/new">
-      Report issues
+      GLTFLoader<br>#f51e228
     </a>
     <span class="separator"> | </span>
     <a class="item" target="_blank" href="https://github.com/donmccurdy/three-gltf-viewer">
+      GLTFViewer<br>master
+      <!--
       <img src="/assets/github@1X.png"
            srcset="/assets/github@1X.png 1x,
                    /assets/github@2X.png 2x"
            alt="GitHub">
+      -->
     </a>
     <span class="flex-grow"></span>
+    <button id="upload-btn" class="item" style="display: none;">⬆&nbsp;&nbsp;&nbsp;Upload</button>
+    <span class="separator"> | </span>
     <button id="download-btn" class="item" style="display: none;">⬇&nbsp;&nbsp;&nbsp;Download</button>
   </header>
   <main class="wrap">

@@ -59,7 +59,7 @@ header {
   background: #353535;
   padding: 0 2em;
   height: 4rem;
-  line-height: 4rem;
+/*  line-height: 4rem;*/
   align-items: center;
   overflow-x: auto;
   overflow-y: hidden;
@@ -73,7 +73,7 @@ header .item,
 header .separator {
   color: #F5F5F5;
   font-weight: 300;
-  line-height: 4rem;
+/*  line-height: 4rem;*/
   margin: 0;
 }
 

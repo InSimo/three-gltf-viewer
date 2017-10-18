@@ -33,16 +33,21 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   const uploadBtnEl = document.querySelector('#upload-btn');
   uploadBtnEl.addEventListener('click', function () {
-	console.warn( 'UPLOAD...' );
+    var formData = new FormData();
+    var blob = new Blob([new Uint8Array(window.contentBinary)], {type: 'model/gltf.binary'});
+    formData.append('obj', blob);
+    var request = new XMLHttpRequest();
+    request.open('post', '/upload');
+    request.send(formData);
   });
-
   const dropEl = document.querySelector('.dropzone');
   const dropCtrl = new DropController(dropEl);
+
   dropCtrl.on('drop', ({rootFile, rootPath, fileMap}) => view(rootFile, rootPath, fileMap));
   dropCtrl.on('dropstart', () => (spinnerEl.style.display = ''));
   dropCtrl.on('droperror', () => (spinnerEl.style.display = 'none'));
 
-  function view (rootFile, rootPath, fileMap) {
+  function view (rootFile, rootPath, fileMap) { 
     if (!viewer) {
       viewerEl = document.createElement('div');
       viewerEl.classList.add('viewer');
@@ -56,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileURL = typeof rootFile === 'string'
       ? rootFile
       : URL.createObjectURL(rootFile);
-
+    
     const cleanup = () => {
       spinnerEl.style.display = 'none';
       if (typeof rootFile === 'object') {

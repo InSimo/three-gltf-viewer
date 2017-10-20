@@ -47,10 +47,8 @@ app.post('/upload', upload.fields([{name:'glb', maxCount: 1}]), function (req, r
         return;
     }
     var glbfile_in = req.files.glb[0].path;
-    var hasher = crypto.createHash('sha224');
-    hasher.setEncoding('hex');
-    var stream = fs.createReadStream(glbfile_in,{'flags': 'r', 'encoding': 'binary'});
-    stream.pipe(hasher).on('finish',function() {
+    var hasher = crypto.createHash('sha224').setEncoding('hex');
+    fs.createReadStream(glbfile_in).pipe(hasher).on('finish',function() {
         var hash = hasher.read();
         console.log('Hash is',hash);
         var dir = mkdirpSync(['data',hash.substring(0,2),hash.substring(2,4),hash.substring(4)]);

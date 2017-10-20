@@ -1,4 +1,5 @@
 const fs = require('fs');
+const os = require('os');
 const express = require('express');
 const app = express();
 const path = require("path");
@@ -114,6 +115,22 @@ app.use(function (err, req, res, next) {
     res.status(500).send('Something went wrong');
 })
 
-app.listen(3000, function(){
-    console.log('server is up');
+var server = app.listen(5000, undefined, function(){
+    // print server URLs to the console, so that the browser can be started by Ctrl+click
+    var host = server.address().address;
+    var port = server.address().port;
+    console.log('Serving!');
+    console.log('- Local:             http://localhost:'+port);
+    var ip = undefined;
+    for (var intf of Object.values(os.networkInterfaces())) {
+        for (var a of intf) {
+            if (ip === undefined && !a.internal && a.family === 'IPv4') {
+                ip = a.address;
+            }
+        }
+    }
+    if (ip) {
+        console.log('- On Your Network:   http://'+ip+':'+port);
+    }
+    console.log('');
 });

@@ -4,9 +4,10 @@
   "description": "Preview glTF models using three.js and a drag-and-drop interface.",
   "main": "index.js",
   "scripts": {
-    "start": "browserify index.js -o bundle.js && node server.js",
+    "watch": "watchify index.js -o bundle.js -v",
     "build": "browserify index.js -o bundle.js",
-    "dev": "budo index.js:bundle.js --port 3000",
+    "start": "npm run build && node server.js",
+    "dev": "npm run watch & nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "deploy": "npm run build && now --static && npm run clean",
     "clean": "rm bundle.js"
@@ -39,9 +40,11 @@
     "zipjs-browserify": "^1.0.1"
   },
   "devDependencies": {
-    "browserify": "^14.3.0",
+    "browserify": "^14.5.0",
     "budo": "^9.4.7",
-    "glslify": "^6.1.0"
+    "glslify": "^6.1.0",
+    "nodemon": "^1.12.1",
+    "watchify": "^3.9.0"
   },
   "browserify": {
     "transform": [

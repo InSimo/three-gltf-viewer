@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const hash = location.hash ? queryString.parse(location.hash) : {};
   if (!hash.model && location.search) hash.model = location.search.substr(1);
+  if (!hash.model && location.pathname.substring(0,2) == '/v' ) hash.model = location.pathname + '/model.glb';
 
   let viewer;
   let viewerEl;
@@ -35,10 +36,15 @@ document.addEventListener('DOMContentLoaded', () => {
   uploadBtnEl.addEventListener('click', function () {
     var formData = new FormData();
     var blob = new Blob([new Uint8Array(window.contentBinary)], {type: 'model/gltf.binary'});
-    formData.append('obj', blob);
-    var request = new XMLHttpRequest();
-    request.open('post', '/upload');
-    request.send(formData);
+    console.log(rootName);
+    formData.append('name', rootName);
+    formData.append('glb', blob);
+    fetch('/upload', { method: 'POST', body : formData, redirect: 'manual'})
+          .then(res=>{console.log(res); return res.text()})
+          .then(data=>{
+              console.log(data);
+              window.location.href = data;
+          });
   });
   const dropEl = document.querySelector('.dropzone');
   const dropCtrl = new DropController(dropEl);
@@ -47,7 +53,10 @@ document.addEventListener('DOMContentLoaded', () => {
   dropCtrl.on('dropstart', () => (spinnerEl.style.display = ''));
   dropCtrl.on('droperror', () => (spinnerEl.style.display = 'none'));
 
-  function view (rootFile, rootPath, fileMap) { 
+    function view (rootFile, rootPath, fileMap, canUpload = true) {
+    console.log(rootFile);
+    console.log(rootPath);
+    console.log(fileMap);
     if (!viewer) {
       viewerEl = document.createElement('div');
       viewerEl.classList.add('viewer');
@@ -82,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
           document.title = rootName;
         }
         downloadBtnEl.style.display = null;
-        uploadBtnEl.style.display = null;
+        uploadBtnEl.style.display = canUpload ? null : 'none';
       }
     };
 
@@ -101,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     headerEl.style.display = 'none';
   }
   if (hash.model) {
-    view(hash.model, '', new Map());
+    view(hash.model, '', new Map(), false);
   }
 
 });

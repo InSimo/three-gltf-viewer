@@ -18,6 +18,10 @@ const mkdirpSync = function (dirParts) {
     return path.join.apply(null,dirParts);
 }
 
+const moveWithCopy = function(fIn, fOut) {
+    fs.createReadStream(fIn).pipe(fs.createWriteStream(fOut)).on('end',function(){ fs.unlink(fIn,function(){}); });
+}
+
 // Convert from normal to web-safe, strip trailing "="s
 function base64web(base64) {
     return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -28,8 +32,7 @@ function base64normal(base64) {
     return base64.replace(/\-/g, '+').replace(/_/g, '/') + '=='.substring(0, (3*base64.length)%4);
 }
 
-var uploadDir = 'uploads';
-mkdirpSync([uploadDir]);
+var uploadDir = mkdirpSync(['data','uploads']);
 var upload = multer({ dest: uploadDir+path.sep });
 
 app.get('/', function(req, res) {
@@ -110,7 +113,6 @@ app.post('/upload', upload.fields([{name:'glb', maxCount: 1},{name:'image', maxC
         else {
             fs.unlink(glbIn, function() {}); // async, but we don't care when it is finished
         }
-        console.log('imageIn !== undefined');
         if (imageIn !== undefined) {
             var imageOut = path.join(dir,hashes.image+'.png');
             console.log('imageOut',imageOut);
@@ -122,7 +124,6 @@ app.post('/upload', upload.fields([{name:'glb', maxCount: 1},{name:'image', maxC
                 fs.unlink(imageIn, function() {}); // async, but we don't care when it is finished
             }
         }
-        console.log('viewIn !== undefined');
         if (viewIn !== undefined) {
             fs.unlink(viewIn, function() {}); // async, but we don't care when it is finished
         }
@@ -139,9 +140,6 @@ app.post('/upload', upload.fields([{name:'glb', maxCount: 1},{name:'image', maxC
         console.log(shareUrl);
         res.end(shareUrl);
         //res.redirect(303,sharePath);
-    })
-    .catch(function(err) {
-        res.status(404).send('Error');
     });
 });
 

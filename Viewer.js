@@ -48,8 +48,8 @@ module.exports = class Viewer {
     this.activeCamera = this.defaultCamera;
     this.scene.add( this.defaultCamera );
 
-    this.renderer = new THREE.WebGLRenderer({antialias: true});
-    this.renderer.setClearColor( 0xcccccc );
+    this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+    this.renderer.setClearColor( 0x000000, 0 );
     this.renderer.setPixelRatio( window.devicePixelRatio );
     this.renderer.setSize( el.clientWidth, el.clientHeight );
 
@@ -62,6 +62,7 @@ module.exports = class Viewer {
       grainScale: IS_IOS ? 0 : 0.001, // mattdesl/three-vignette-background#1
       colors: ['#ffffff', '#353535']
     });
+    this.background.renderOrder = -100; // make sure the background is always rendered first
 
     this.el.appendChild(this.renderer.domElement);
 
@@ -96,10 +97,36 @@ module.exports = class Viewer {
 
   }
 
-  render () {
-
+  render (getImage = false) {
     this.renderer.render( this.scene, this.activeCamera );
+    if (getImage) {
+      return this.renderer.domElement.toDataURL();
+    }
+  }
 
+  renderImage (w,h,cb) {
+    // set the image size
+    const clientHeight = w, clientWidth = h;
+    this.renderer.setPixelRatio( 1.0 );
+    this.defaultCamera.aspect = clientWidth / clientHeight;
+    this.defaultCamera.updateProjectionMatrix();
+    this.background.style({aspect: this.defaultCamera.aspect});
+    this.renderer.setSize(clientWidth, clientHeight);
+    // remove vignette background
+    this.scene.remove(this.background);
+
+    // render the image
+    this.renderer.render( this.scene, this.activeCamera );
+    // immediatly capture image (this way preserveDrawingBuffer should not be required)
+    this.renderer.domElement.toBlob( (data) => {
+      // reset renderer settings
+      this.renderer.setPixelRatio( window.devicePixelRatio );
+      // reset size and background
+      this.resize();
+      this.updateEnvironment();
+      this.render();
+      cb(data);
+     });
   }
 
   resize () {
@@ -113,7 +140,7 @@ module.exports = class Viewer {
 
   }
 
-  load ( url, rootPath, assetMap ) {
+  load ( url, rootPath, assetMap, initState = {} ) {
 
     return new Promise((resolve, reject) => {
 
@@ -141,7 +168,7 @@ module.exports = class Viewer {
         const scene = gltf.scene || gltf.scenes[0];
         const clips = gltf.animations || [];
         const contentBinary = gltf.binaryData;
-        this.setContent(scene, clips, contentBinary);
+        this.setContent(scene, clips, contentBinary, initState);
 
         blobURLs.forEach(URL.revokeObjectURL);
 
@@ -158,7 +185,7 @@ module.exports = class Viewer {
    * @param {Array<THREE.AnimationClip} clips
    * @param {Blob} contentBinary
    */
-  setContent ( object, clips, contentBinary ) {
+  setContent ( object, clips, contentBinary, initState = {} ) {
 
     this.clear();
 
@@ -198,6 +225,22 @@ module.exports = class Viewer {
     });
 
     this.setClips(clips);
+
+    console.log(initState);
+    for (var a of Object.keys(initState)) {
+      if (this.state.hasOwnProperty(a)) {
+        console.log('Setting view ',a,' to ',initState[a]);
+        this.state[a] = initState[a];
+      }
+    }
+    if ('defaultCamera' in initState) {
+      this.defaultCamera.position.copy(initState.defaultCamera.position);
+      this.defaultCamera.quaternion.copy(initState.defaultCamera.quaternion);
+      this.controls.target.copy(initState.defaultCamera.target);
+      if ('autoRotate' in initState.defaultCamera) {
+        this.controls.autoRotate = initState.defaultCamera.autoRotate;
+      }
+    }
 
     this.updateLights();
     this.updateGUI();
@@ -292,7 +335,7 @@ module.exports = class Viewer {
         envMap.format = THREE.RGBFormat;
     }
 
-    if ((!envMap || !this.state.background) && this.activeCamera === this.defaultCamera) {
+    if ((!this.state.background) && this.activeCamera === this.defaultCamera) {
       this.scene.add(this.background);
     } else {
       this.scene.remove(this.background);
@@ -323,33 +366,33 @@ module.exports = class Viewer {
 
     // Display controls.
     const dispFolder = gui.addFolder('Display');
-    const envMapCtrl = dispFolder.add(this.state, 'environment', environments.map((env) => env.name));
-    envMapCtrl.onChange(() => this.updateEnvironment());
-    const envBackgroundCtrl = dispFolder.add(this.state, 'background');
-    envBackgroundCtrl.onChange(() => this.updateEnvironment());
-    const wireframeCtrl = dispFolder.add(this.state, 'wireframe');
+    this.envMapCtrl = dispFolder.add(this.state, 'environment', environments.map((env) => env.name));
+    this.envMapCtrl.onChange(() => this.updateEnvironment());
+    this.envBackgroundCtrl = dispFolder.add(this.state, 'background');
+    this.envBackgroundCtrl.onChange(() => this.updateEnvironment());
+    const wireframeCtrl = dispFolder.add(this.state, 'wireframe').listen();
     wireframeCtrl.onChange(() => this.updateDisplay());
-    dispFolder.add(this.controls, 'autoRotate');
+    dispFolder.add(this.controls, 'autoRotate').listen();
 
     // Lighting controls.
     const lightFolder = gui.addFolder('Lights');
     this.lightCtrl = lightFolder.add(this.state, 'addLights').listen();
     this.lightCtrl.onChange(() => this.updateLights());
-    const directColor = lightFolder.addColor(this.state, 'directColor');
+    const directColor = lightFolder.addColor(this.state, 'directColor').listen();
     directColor.onChange((hex) => {
       this.lights[0].color.setHex(hex);
       this.lights[1].color.setHex(hex);
     });
-    const directIntensity = lightFolder.add(this.state, 'directIntensity', 0, 1);
+    const directIntensity = lightFolder.add(this.state, 'directIntensity', 0, 1).listen();
     directIntensity.onChange((intensity) => {
       this.lights[0].intensity = intensity;
       this.lights[1].intensity = intensity;
     });
-    const ambientColor = lightFolder.addColor(this.state, 'ambientColor');
+    const ambientColor = lightFolder.addColor(this.state, 'ambientColor').listen();
     ambientColor.onChange((hex) => {
       this.lights[2].color.setHex(hex);
     });
-    const ambientIntensity = lightFolder.add(this.state, 'ambientIntensity', 0, 1);
+    const ambientIntensity = lightFolder.add(this.state, 'ambientIntensity', 0, 1).listen();
     ambientIntensity.onChange((intensity) => {
       this.lights[2].intensity = intensity;
     });
@@ -357,7 +400,7 @@ module.exports = class Viewer {
     // Animation controls.
     this.animFolder = gui.addFolder('Animation');
     this.animFolder.domElement.style.display = 'none';
-    const playbackSpeedCtrl = this.animFolder.add(this.state, 'playbackSpeed', 0, 1);
+    const playbackSpeedCtrl = this.animFolder.add(this.state, 'playbackSpeed', 0, 1).listen();
     playbackSpeedCtrl.onChange((speed) => {
       if (this.mixer) this.mixer.timeScale = speed;
     });
@@ -387,6 +430,8 @@ module.exports = class Viewer {
   }
 
   updateGUI () {
+    this.envMapCtrl.updateDisplay();
+    this.envBackgroundCtrl.updateDisplay();
     this.lightCtrl.updateDisplay();
 
     this.cameraFolder.domElement.style.display = 'none';
@@ -453,6 +498,18 @@ module.exports = class Viewer {
 
     this.scene.remove( this.content );
 
+  }
+
+  getState() {
+    var copy = Object.assign({}, this.state);
+    // copy the default camera position if it is the default camera
+    copy.defaultCamera = {
+        position: this.activeCamera.position,
+        quaternion: this.activeCamera.quaternion,
+        target: this.controls.target,
+        autoRotate: this.controls.autoRotate
+    };
+    return copy;
   }
 
 };

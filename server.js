@@ -40,42 +40,120 @@ app.get('/', function(req, res) {
 
 // uploading models for sharing
 // we want to store them based on the hash of their content, in order to dedup them and generate unique URLs
-// however, we need to wait for the file content to be received in order to know its hash
+// however, we need to wait for the file contents to be received in order to know their hash
 // so we first let multer put the files in its temporary folder, before moving them to their final storage.
-app.post('/upload', upload.fields([{name:'glb', maxCount: 1}]), function (req, res) {
+app.post('/upload', upload.fields([{name:'glb', maxCount: 1},{name:'image', maxCount: 1},{name:'view', maxCount: 1}]), function (req, res) {
+    console.log('BODY:',req.body);
     if (req.files.glb.length != 1) {
-        res.end('One GLB file must be provided');
+        res.status(404).send('One GLB file must be provided');
         return;
     }
-    var glbfile_in = req.files.glb[0].path;
-    var hasher = crypto.createHash('sha224').setEncoding('hex');
-    fs.createReadStream(glbfile_in).pipe(hasher).on('finish',function() {
-        var hash = hasher.read();
-        console.log('Hash is',hash);
-        var dir = mkdirpSync(['data',hash.substring(0,2),hash.substring(2,4),hash.substring(4)]);
-        var glbfile_out = path.join(dir,'glb');
-        if (!fs.existsSync(glbfile_out)) {
-            console.log(glbfile_in, '->',glbfile_out);
-            fs.renameSync(glbfile_in, glbfile_out);
+    // First we compute the hash for all input files
+    var glbIn = req.files.glb[0].path;
+    var imageIn = undefined;
+    var viewIn = undefined;
+    //var index = {};
+    var index = Object.assign({}, req.body);
+    var hashes = {};
+    var promises = [];
+    var fields = ['glb'];
+    if (req.files.image !== undefined) {
+        imageIn = req.files.image[0].path;
+        fields.push('image');
+    }
+    if (req.files.view !== undefined) {
+        viewIn = req.files.view[0].path;
+    }
+    fields.forEach(function(upField) {
+        req.files[upField].forEach(function(upFile) {
+            var fileIn = upFile.path;
+            var hasher = crypto.createHash('sha224').setEncoding('hex');
+            promises.push(new Promise(function(resolve, reject) {
+                fs.createReadStream(fileIn).pipe(hasher).on('finish',function() {
+                    var hash = hasher.read();
+                    console.log(upField,'hash is',hash);
+                    hashes[upField] = hash;
+                    resolve(hash);
+                })
+            }));
+        });
+    });
+    if (req.files.view !== undefined) {
+        promises.push(new Promise(function(resolve, reject) {
+            fs.readFile(req.files.view[0].path,'utf8', function(err, data) {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                index.view = JSON.parse(data);
+                resolve(index.view);
+            });
+        }));
+    }
+    Promise.all(promises).then(function(d) {
+        index.glb = base64web(new Buffer(hashes.glb, 'hex').toString('base64'));
+        if (imageIn !== undefined) {
+            index.image = base64web(new Buffer(hashes.image, 'hex').toString('base64'));
+        }
+        var indexJson = JSON.stringify(index);
+        console.log(indexJson);
+        var hasher = crypto.createHash('sha224').setEncoding('hex');
+        hasher.update(indexJson);
+        var hash = hasher.digest('hex');
+        console.log('Index hash is',hash);
+        var dir = mkdirpSync(['data',hashes.glb.substring(0,2),hashes.glb.substring(2,4),hashes.glb.substring(4)]);
+        var glbOut = path.join(dir,'model.glb');
+        if (!fs.existsSync(glbOut)) {
+            console.log(glbIn, '->',glbOut);
+            fs.renameSync(glbIn, glbOut);
         }
         else {
-            fs.unlink(glbfile_in, function() {}); // async, but we don't care when it is finished
+            fs.unlink(glbIn, function() {}); // async, but we don't care when it is finished
         }
-        var hashb64 = base64web(new Buffer(hash, 'hex').toString('base64'));
+        console.log('imageIn !== undefined');
+        if (imageIn !== undefined) {
+            var imageOut = path.join(dir,hashes.image+'.png');
+            console.log('imageOut',imageOut);
+            if (!fs.existsSync(imageOut)) {
+                console.log(imageIn, '->',imageOut);
+                fs.renameSync(imageIn, imageOut);
+            }
+            else {
+                fs.unlink(imageIn, function() {}); // async, but we don't care when it is finished
+            }
+        }
+        console.log('viewIn !== undefined');
+        if (viewIn !== undefined) {
+            fs.unlink(viewIn, function() {}); // async, but we don't care when it is finished
+        }
+        var indexStream = fs.createWriteStream(path.join(dir,hash+'.json'));
+        indexStream.end(indexJson);
 
-        var sharePath = '/v'+hashb64;
+        var glbHashb64 = base64web(new Buffer(hashes.glb, 'hex').toString('base64'));
+        var hashb64 = base64web(new Buffer(hash, 'hex').toString('base64'));
+        var sharePath = '/v'+glbHashb64;
+        if (imageIn !== undefined || viewIn !== undefined) {
+            sharePath += '.'+hashb64;
+        }
         var shareUrl = req.protocol + '://' + req.get('host') + sharePath;
         console.log(shareUrl);
         res.end(shareUrl);
         //res.redirect(303,sharePath);
+    })
+    .catch(function(err) {
+        res.status(404).send('Error');
     });
 });
 
 var reHashB64 = /^[a-zA-Z0-9_-]{38}$/;
 
 app.get('/v:hashb64', function(req, res) {
-    hashb64 = req.params.hashb64;
-    if (!reHashB64.test(hashb64)) {
+    hashb64 = req.params.hashb64.substring(0,38);
+    hindexb64 = undefined;
+    if (req.params.hashb64.length == 2*38+1 && req.params.hashb64[38] == '.') {
+        hindexb64 = req.params.hashb64.substring(39);
+    }
+    if (!reHashB64.test(hashb64) || (hindexb64 !== undefined && !reHashB64.test(hindexb64))) {
         res.status(404).send('Not found');
         return;
     }
@@ -91,7 +169,7 @@ app.get('/v:hashb64', function(req, res) {
 
 app.get('/v:hashb64/model.glb', function(req, res) {
     hashb64 = req.params.hashb64;
-    if (hashb64.length!=38 || !reHashB64.test(hashb64)) {
+    if (!reHashB64.test(hashb64)) {
         res.status(404).send('Not found');
         return;
     }
@@ -101,12 +179,52 @@ app.get('/v:hashb64/model.glb', function(req, res) {
         res.status(404).send('Not found');
         return;
     }
-    var file = path.join(dir,'glb');
+    var file = path.join(dir,'model.glb');
     if (!fs.existsSync(file)) {
         res.status(404).send('Not found');
         return;
     }
     res.type('model/gltf.binary');
+    res.sendFile(file);
+});
+
+app.get('/v:hashb64/:hindexb64.json', function(req, res) {
+    hashb64 = req.params.hashb64;
+    hindexb64 = req.params.hindexb64;
+    if (!reHashB64.test(hashb64) || !reHashB64.test(hindexb64)) {
+        res.status(404).send('Not found');
+        return;
+    }
+    var hash = new Buffer(base64normal(hashb64),"base64").toString('hex');
+    var hindex = new Buffer(base64normal(hindexb64),"base64").toString('hex');
+
+    var dir = path.join(__dirname,'data',hash.substring(0,2),hash.substring(2,4),hash.substring(4));
+    var file = path.join(dir,hindex+'.json');
+    if (!fs.existsSync(file)) {
+        res.status(404).send('Not found');
+        return;
+    }
+    res.type('application/json');
+    res.sendFile(file);
+});
+
+app.get('/v:hashb64/:himageb64.png', function(req, res) {
+    hashb64 = req.params.hashb64;
+    himageb64 = req.params.himageb64;
+    if (!reHashB64.test(hashb64) || !reHashB64.test(himageb64)) {
+        res.status(404).send('Not found');
+        return;
+    }
+    var hash = new Buffer(base64normal(hashb64),"base64").toString('hex');
+    var himage = new Buffer(base64normal(himageb64),"base64").toString('hex');
+
+    var dir = path.join(__dirname,'data',hash.substring(0,2),hash.substring(2,4),hash.substring(4));
+    var file = path.join(dir,himage+'.png');
+    if (!fs.existsSync(file)) {
+        res.status(404).send('Not found');
+        return;
+    }
+    res.type('image/png');
     res.sendFile(file);
 });
 

@@ -15,13 +15,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const hash = location.hash ? queryString.parse(location.hash) : {};
   if (!hash.model && location.search) hash.model = location.search.substr(1);
-  if (!hash.model && location.pathname.substring(0,2) == '/v' ) hash.model = location.pathname + '/model.glb';
+  if (!hash.model && location.pathname.substring(0,2) == '/v' ) {
+    hash.model = location.pathname.substring(0,40) + '/model.glb';
+    console.log(hash.model);
+  }
+  if (!hash.json && location.pathname.substring(40,41) == '.' ) {
+    hash.json = location.pathname.substring(0,40) + '/' + location.pathname.substring(41) + '.json';
+    console.log(hash.json);
+  }
 
   let viewer;
   let viewerEl;
 
   let files;
-  let rootName;
+  let rootName = '';
 
   const spinnerEl = document.querySelector('.spinner');
   spinnerEl.style.display = 'none';
@@ -32,19 +39,31 @@ document.addEventListener('DOMContentLoaded', () => {
         FileSaver.saveAs(new Blob([new Uint8Array(window.contentBinary)], {type: 'model/gltf.binary'}), `output.glb`);
     }
   });
-  const uploadBtnEl = document.querySelector('#upload-btn');
-  uploadBtnEl.addEventListener('click', function () {
+  const shareBtnEl = document.querySelector('#share-btn');
+  shareBtnEl.addEventListener('click', function () {
+  viewer.renderImage(512,512,function(imageBlob) {
     var formData = new FormData();
-    var blob = new Blob([new Uint8Array(window.contentBinary)], {type: 'model/gltf.binary'});
+    var glbBlob = new Blob([new Uint8Array(window.contentBinary)], {type: 'model/gltf.binary'});
+    var viewState = viewer.getState();
+    //viewState.name = rootName;
+    var viewBlob = new Blob([JSON.stringify(viewState)], {type: 'application/json'});
     console.log(rootName);
     formData.append('name', rootName);
-    formData.append('glb', blob);
+    formData.append('glb', glbBlob);
+    formData.append('image', imageBlob);
+    formData.append('view', viewBlob);
     fetch('/upload', { method: 'POST', body : formData, redirect: 'manual'})
-          .then(res=>{console.log(res); return res.text()})
-          .then(data=>{
+          .then(res=>{
+              console.log(res);
+              if (!res.ok) {
+                  throw new Error('Upload failed');
+              }
+              return res.text()
+          }).then(data=>{
               console.log(data);
               window.location.href = data;
           });
+    });
   });
   const dropEl = document.querySelector('.dropzone');
   const dropCtrl = new DropController(dropEl);
@@ -53,10 +72,11 @@ document.addEventListener('DOMContentLoaded', () => {
   dropCtrl.on('dropstart', () => (spinnerEl.style.display = ''));
   dropCtrl.on('droperror', () => (spinnerEl.style.display = 'none'));
 
-    function view (rootFile, rootPath, fileMap, canUpload = true) {
+  function view (rootFile, rootPath, fileMap, params = {}) {
     console.log(rootFile);
     console.log(rootPath);
     console.log(fileMap);
+    console.log(params);
     if (!viewer) {
       viewerEl = document.createElement('div');
       viewerEl.classList.add('viewer');
@@ -70,47 +90,68 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileURL = typeof rootFile === 'string'
       ? rootFile
       : URL.createObjectURL(rootFile);
-    
+
+    const postLoad = () => {
+      rootName = '';
+      if (params.hasOwnProperty('name')) {
+        rootName = params.name;
+      }
+      else if (typeof rootFile === 'string') {
+        rootName = rootFile.match(/([^\/]+)\.(gltf|glb)$/)[1];
+      }
+      else if (typeof rootFile === 'string') {
+        rootName = rootFile.match(/([^\/]+)\.(gltf|glb)$/)[1];
+      }
+      else if (fileMap.size) {
+        files = fileMap;
+        rootName = rootFile.name.match(/([^\/]+)\.(gltf|glb)$/)[1];
+      }
+      document.title = rootName == '' ? 'glTF Viewer' : rootName + ' - glTF';
+      if (window.contentBinary) {
+        downloadBtnEl.style.display = (!params.hasOwnProperty('canSave') || params.canSave) ? null : 'none';
+        shareBtnEl.style.display = (!params.hasOwnProperty('canShare') || params.canShare) ? null : 'none';
+      }
+      else {
+        console.warn('NOT BINARY');
+      }
+    };
+
     const cleanup = () => {
       spinnerEl.style.display = 'none';
       if (typeof rootFile === 'object') {
         URL.revokeObjectURL(fileURL);
       }
-
-      if (!window.contentBinary) {
-        console.warn('NOT BINARY');
-      }
-      if (window.contentBinary) {
-        if (fileMap.size) {
-          files = fileMap;
-          rootName = rootFile.name.match(/([^\/]+)\.(gltf|glb)$/)[1];
-          document.title = rootName;
-        }
-        else if (typeof rootFile === 'string') {
-          rootName = rootFile.match(/([^\/]+)\.(gltf|glb)$/)[1];
-          document.title = rootName;
-        }
-        downloadBtnEl.style.display = null;
-        uploadBtnEl.style.display = canUpload ? null : 'none';
-      }
     };
 
     spinnerEl.style.display = '';
-    viewer.load(fileURL, rootPath, fileMap)
-      .then(cleanup)
-      .catch((error) => {
-        window.alert((error||{}).message || error);
-        console.error(error);
-        cleanup();
-      });
+    viewer.load(fileURL, rootPath, fileMap, params.view || {})
+    .then(postLoad)
+    .then(cleanup)
+    .catch((error) => {
+      window.alert((error||{}).message || error);
+      console.error(error);
+      cleanup();
+    });
   }
 
   if (hash.kiosk) {
     const headerEl = document.querySelector('header');
     headerEl.style.display = 'none';
   }
-  if (hash.model) {
-    view(hash.model, '', new Map(), false);
+  if (hash.json) {
+    fetch(hash.json)
+    .then(res=>{
+      if (res.ok) {
+        return res.json();
+      } else {
+        console.log('Fetch json',hash.json,' failed');
+        return new Promise.resolve({});
+      }
+    }).then(data=>{
+      view(hash.model, '', new Map(), data);
+    });
+  } else if (hash.model) {
+    view(hash.model, '', new Map());
   }
 
 });

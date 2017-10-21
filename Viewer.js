@@ -5,6 +5,8 @@ const Stats = require('./lib/stats.min.js');
 const environments = require('./assets/environment/index');
 const createVignetteBackground = require('three-vignette-background');
 
+require('./lib/draco/draco_decoder');
+require('./lib/draco/DRACOLoader');
 require('./lib/GLTFLoader');
 require('./lib/OrbitControls');
 
@@ -152,6 +154,7 @@ module.exports = class Viewer {
     return new Promise((resolve, reject) => {
 
       const loader = new THREE.GLTFLoader();
+      loader.setDRACOLoader( new THREE.DRACOLoader( undefined, {type: 'js'} ) );
       loader.setCrossOrigin('anonymous');
       const blobURLs = [];
 

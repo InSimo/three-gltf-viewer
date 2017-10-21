@@ -44,7 +44,12 @@ module.exports = class Viewer {
 
     this.scene = new THREE.Scene();
 
+    // support for Three.js Inspector chrome extension https://github.com/jeromeetienne/threejs-inspector
+    window.scene = this.scene;
+    window.THREE = THREE;
+
     this.defaultCamera = new THREE.PerspectiveCamera( 60, el.clientWidth / el.clientHeight, 0.01, 1000 );
+    this.defaultCamera.name = DEFAULT_CAMERA;
     this.activeCamera = this.defaultCamera;
     this.scene.add( this.defaultCamera );
 
@@ -62,6 +67,7 @@ module.exports = class Viewer {
       grainScale: IS_IOS ? 0 : 0.001, // mattdesl/three-vignette-background#1
       colors: ['#ffffff', '#353535']
     });
+    this.background.name = '[Vignette]';
     this.background.renderOrder = -100; // make sure the background is always rendered first
 
     this.el.appendChild(this.renderer.domElement);
@@ -212,7 +218,7 @@ module.exports = class Viewer {
     this.setCamera(DEFAULT_CAMERA);
 
     this.controls.saveState();
-
+    object.name = 'glTF';
     this.scene.add(object);
     this.content = object;
     this.contentBinary = contentBinary;
@@ -299,14 +305,17 @@ module.exports = class Viewer {
   addLights () {
 
     const light1 = new THREE.DirectionalLight( this.state.directColor );
+    light1.name = '[Default light1]';
     light1.position.set( 0, 0, 1 );
     this.scene.add(light1);
 
     const light2 = new THREE.DirectionalLight( this.state.directColor );
+    light2.name = '[Default light2]';
     light2.position.set( 0, 5, -5 );
     this.scene.add(light2);
 
     const light3 = new THREE.AmbientLight( this.state.ambientColor );
+    light3.name = '[Default light3]';
     this.scene.add( light3 );
 
     this.lights.push(light1, light2, light3);

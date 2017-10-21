@@ -125,13 +125,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     spinnerEl.style.display = '';
     viewer.load(fileURL, rootPath, fileMap, params.view || {})
-    .then(postLoad)
-    .then(cleanup)
-    .catch((error) => {
-      window.alert((error||{}).message || error);
-      console.error(error);
-      cleanup();
-    });
+      .then(postLoad)
+      .then(cleanup)
+      .catch((error) => {
+        if (error && error.target && error.target instanceof Image) {
+          error = 'Missing texture: ' + error.target.src.split('/').pop();
+        }
+        window.alert((error||{}).message || error);
+        console.error(error);
+        cleanup();
+      });
   }
 
   if (hash.kiosk) {

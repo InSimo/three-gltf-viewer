@@ -27,13 +27,14 @@ module.exports = class Viewer {
       environment: environments[1].name,
       background: false,
       playbackSpeed: 1.0,
-      addLights: true,
-      directColor: 0xffeedd,
-      directIntensity: 1,
-      ambientColor: 0x222222,
-      ambientIntensity: 1,
+      actionStates: {},
       camera: DEFAULT_CAMERA,
-      wireframe: false
+      wireframe: false,
+
+      // Lights
+      addLights: true,
+      'direct ↔ ambient': 0.25,
+      intensity: 1.0,
     };
 
     this.prevTime = 0;
@@ -256,6 +257,15 @@ module.exports = class Viewer {
     window.content = this.content;
     window.contentBinary = this.contentBinary;
     console.info('[glTF Viewer] THREE.Scene exported as `window.content`, binary blob version as `window.contentBinary`.');
+    this.printGraph(this.content);
+
+  }
+
+  printGraph (node) {
+
+    console.group(' <' + node.type + '> ' + node.name);
+    node.children.forEach((child) => this.printGraph(child));
+    console.groupEnd();
 
   }
 
@@ -275,11 +285,17 @@ module.exports = class Viewer {
     this.mixer = new THREE.AnimationMixer( this.content );
   }
 
+  playAllClips () {
+    this.clips.forEach((clip) => {
+      this.mixer.clipAction(clip).reset().play();
+      this.state.actionStates[clip.name] = true;
+    });
+  }
+
   /**
    * @param {string} name
    */
   setCamera ( name ) {
-    this.scene.remove( this.activeCamera );
     if (name === DEFAULT_CAMERA) {
       this.controls.enabled = true;
       this.activeCamera = this.defaultCamera;
@@ -291,34 +307,58 @@ module.exports = class Viewer {
         }
       });
     }
-    this.scene.add( this.activeCamera );
   }
 
   updateLights () {
-    if (this.state.addLights && !this.lights.length) {
+    const lights = this.lights;
+
+    if (this.state.addLights && !lights.length) {
       this.addLights();
-    } else if (!this.state.addLights && this.lights.length) {
+    } else if (!this.state.addLights && lights.length) {
       this.removeLights();
+    }
+
+    if (lights.length) {
+      const ratio = this.state['direct ↔ ambient'];
+      const intensity = this.state.intensity;
+      lights[0].intensity = lights[0].userData.baseIntensity * intensity * ratio;
+      lights[1].intensity = lights[1].userData.baseIntensity * intensity * (1 - ratio);
+      lights[2].intensity = lights[2].userData.baseIntensity * intensity * (1 - ratio);
+      lights[3].intensity = lights[3].userData.baseIntensity * intensity * (1 - ratio);
     }
   }
 
   addLights () {
+    const ratio = this.state['direct ↔ ambient'];
 
-    const light1 = new THREE.DirectionalLight( this.state.directColor );
-    light1.name = '[Default light1]';
-    light1.position.set( 0, 0, 1 );
-    this.scene.add(light1);
+    const light1  = new THREE.AmbientLight(0x808080, 1.0);
+    light1.userData.baseIntensity = light1.intensity;
+    light1.intensity *= ratio;
+    light1.name = 'ambient_light';
+    this.scene.add( light1 );
 
-    const light2 = new THREE.DirectionalLight( this.state.directColor );
-    light2.name = '[Default light2]';
-    light2.position.set( 0, 5, -5 );
-    this.scene.add(light2);
+    const light2  = new THREE.DirectionalLight(0xFFFFFF, 0.375);
+    light2.userData.baseIntensity = light2.intensity;
+    light2.intensity *= (1 - ratio);
+    light2.position.set(3, 1, -2.6);
+    light2.name = 'back_light';
+    this.scene.add( light2 );
 
-    const light3 = new THREE.AmbientLight( this.state.ambientColor );
-    light3.name = '[Default light3]';
+    const light3  = new THREE.DirectionalLight(0xFFFFFF, 0.625);
+    light3.userData.baseIntensity = light3.intensity;
+    light3.intensity *= (1 - ratio);
+    light3.position.set(0, -1, 2);
+    light3.name   = 'key_light';
     this.scene.add( light3 );
 
-    this.lights.push(light1, light2, light3);
+    const light4  = new THREE.DirectionalLight(0xFFFFFF, 1.25);
+    light4.userData.baseIntensity = light4.intensity;
+    light4.intensity *= (1 - ratio);
+    light4.position.set(2, 3, 3);
+    light4.name = 'fill_light';
+    this.scene.add( light4 );
+
+    this.lights.push(light1, light2, light3, light4);
 
   }
 
@@ -387,24 +427,10 @@ module.exports = class Viewer {
     const lightFolder = gui.addFolder('Lights');
     this.lightCtrl = lightFolder.add(this.state, 'addLights').listen();
     this.lightCtrl.onChange(() => this.updateLights());
-    const directColor = lightFolder.addColor(this.state, 'directColor').listen();
-    directColor.onChange((hex) => {
-      this.lights[0].color.setHex(hex);
-      this.lights[1].color.setHex(hex);
-    });
-    const directIntensity = lightFolder.add(this.state, 'directIntensity', 0, 1).listen();
-    directIntensity.onChange((intensity) => {
-      this.lights[0].intensity = intensity;
-      this.lights[1].intensity = intensity;
-    });
-    const ambientColor = lightFolder.addColor(this.state, 'ambientColor').listen();
-    ambientColor.onChange((hex) => {
-      this.lights[2].color.setHex(hex);
-    });
-    const ambientIntensity = lightFolder.add(this.state, 'ambientIntensity', 0, 1).listen();
-    ambientIntensity.onChange((intensity) => {
-      this.lights[2].intensity = intensity;
-    });
+    const intensityCtrl = lightFolder.add(this.state,'intensity', 0, 2).listen();
+    intensityCtrl.onChange(() => this.updateLights());
+    const directAmbientRatio = lightFolder.add(this.state,'direct ↔ ambient', 0, 1).listen();
+    directAmbientRatio.onChange(() => this.updateLights());
 
     // Animation controls.
     this.animFolder = gui.addFolder('Animation');
@@ -413,6 +439,7 @@ module.exports = class Viewer {
     playbackSpeedCtrl.onChange((speed) => {
       if (this.mixer) this.mixer.timeScale = speed;
     });
+    this.animFolder.add({playAll: () => this.playAllClips()}, 'playAll');
 
     // Morph target controls.
     this.morphFolder = gui.addFolder('Morph Targets');
@@ -460,6 +487,7 @@ module.exports = class Viewer {
         morphMeshes.push(node);
       }
       if (node.isCamera) {
+        node.name = node.name || `VIEWER__camera_${cameraNames.length + 1}`;
         cameraNames.push(node.name);
       }
     });
@@ -488,11 +516,20 @@ module.exports = class Viewer {
 
     if (this.clips.length) {
       this.animFolder.domElement.style.display = '';
-      const actionStates = {};
-      this.clips.forEach((clip) => {
-        actionStates[clip.name] = false;
-        const ctrl = this.animFolder.add(actionStates, clip.name);
+      const actionStates = this.state.actionStates = {};
+      this.clips.forEach((clip, clipIndex) => {
+        // Autoplay the first clip.
         let action;
+        if (clipIndex === 0) {
+          actionStates[clip.name] = true;
+          action = this.mixer.clipAction(clip);
+          action.play();
+        } else {
+          actionStates[clip.name] = false;
+        }
+
+        // Play other clips when enabled.
+        const ctrl = this.animFolder.add(actionStates, clip.name).listen();
         ctrl.onChange((playAnimation) => {
           action = action || this.mixer.clipAction(clip);
           action.setEffectiveTimeScale(1);

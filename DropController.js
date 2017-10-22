@@ -76,6 +76,11 @@ class DropController extends EventEmitter {
   onSelect (e) {
     // HTML file inputs do not seem to support folders, so assume this is a flat file list.
     const files = [].slice.call(this.fileInputEl.files);
+    // support for zip archive
+    if (files.length === 1 && files[0].type === 'application/zip') {
+        this.loadZip(files[0]);
+        return;
+    }
     const fileMap = new Map();
     files.forEach((file) => fileMap.set(file.name, file));
     this.emitResult(fileMap);

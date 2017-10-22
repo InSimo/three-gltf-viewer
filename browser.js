@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         FileSaver.saveAs(new Blob([new Uint8Array(window.contentBinary)], {type: 'model/gltf.binary'}), `output.glb`);
     }
   });
+  const closeBtnEl = document.querySelector('#close-btn');
   const shareBtnEl = document.querySelector('#share-btn');
   shareBtnEl.addEventListener('click', function () {
   viewer.renderImage(512,512,function(imageBlob) {
@@ -107,6 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rootName = rootFile.name.match(/([^\/]+)\.(gltf|glb)$/)[1];
       }
       document.title = rootName == '' ? 'glTF Viewer' : rootName + ' - glTF';
+      closeBtnEl.style.display = null;
       if (window.contentBinary) {
         downloadBtnEl.style.display = (!params.hasOwnProperty('canSave') || params.canSave) ? null : 'none';
         shareBtnEl.style.display = (!params.hasOwnProperty('canShare') || params.canShare) ? null : 'none';

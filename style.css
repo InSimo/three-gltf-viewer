@@ -70,6 +70,19 @@ header {
   -webkit-app-region: drag;
 }
 
+.menu-checkbox {
+  display: none;
+}
+
+.menu {
+  display: none;
+}
+
+.menu-checkbox:checked + .menu {
+  display: flex;
+}
+
+
 header h1,
 header .item,
 header .separator {
@@ -96,12 +109,18 @@ header .item:hover {
   background: #444;
 }
 
-header .item img {
+header .item img,
+header .item svg {
   height: 28px;
-  margin-bottom: -10px;
+  margin-bottom: -9px;
 }
 
-header button.item {
+header .item .icon {
+  font-size: 1.2rem;
+}
+
+header button.item,
+header label.item {
   height: 34px;
   line-height: 35px;
   padding: 0 1em;
@@ -113,7 +132,8 @@ header button.item {
   cursor: pointer;
 }
 
-header button.item:hover {
+header button.item:hover,
+header label.item:hover {
   color: #000;
 }
 

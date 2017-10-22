@@ -40,6 +40,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   const closeBtnEl = document.querySelector('#close-btn');
+  closeBtnEl.addEventListener('click', function () {
+    if (!viewer) return;
+    viewer.clear();
+    // show dropzone UI elements
+    [].forEach.call(dropEl.children, (child) => {
+      if (child !== viewerEl) child.style.opacity = null;
+    });
+    // hide viewer
+    viewerEl.style.display = 'none';
+    // hide scene UI
+    closeBtnEl.style.display = 'none';
+    downloadBtnEl.style.display = 'none';
+    shareBtnEl.style.display = 'none';
+  });
   const shareBtnEl = document.querySelector('#share-btn');
   shareBtnEl.addEventListener('click', function () {
   viewer.renderImage(512,512,function(imageBlob) {
@@ -78,14 +92,19 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(rootPath);
     console.log(fileMap);
     console.log(params);
+    // hide dropzone UI elements (but don't remove them, so Open menu button still works)
+    [].forEach.call(dropEl.children, (child) => {
+      if (child !== viewerEl) child.style.opacity = 0;
+    });
     if (!viewer) {
       viewerEl = document.createElement('div');
       viewerEl.classList.add('viewer');
-      dropEl.innerHTML = '';
       dropEl.appendChild(viewerEl);
       viewer = new Viewer(viewerEl, {kiosk: !!hash.kiosk});
     } else {
       viewer.clear();
+      // show viewer
+      viewerEl.style.display = null;
     }
 
     const fileURL = typeof rootFile === 'string'

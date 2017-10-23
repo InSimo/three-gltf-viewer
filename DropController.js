@@ -152,7 +152,7 @@ class DropController extends EventEmitter {
     archive.importBlob(file, () => {
       traverse(archive.root);
       Promise.all(pending).then(() => {
-        this.emitResult(fileMap);
+        this.emitResult(fileMap, file);
       });
     });
   }
@@ -160,7 +160,7 @@ class DropController extends EventEmitter {
   /**
    * @param {Map<string, File>} fileMap
    */
-  emitResult (fileMap) {
+  emitResult (fileMap, containerFile = undefined) {
     let rootFile;
     let rootPath;
     fileMap.forEach((file, path) => {
@@ -175,6 +175,7 @@ class DropController extends EventEmitter {
     }
 
     this.emit('drop', {
+      containerFile: containerFile || rootFile,
       rootFile: rootFile,
       rootPath: rootPath,
       fileMap: fileMap

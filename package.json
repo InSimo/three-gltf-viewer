@@ -12,7 +12,7 @@
     "package:windows": "electron-packager . gltf-viewer --overwrite --asar --platform=win32 --arch=ia32 --icon=assets/icons/glTF-Viewer.ico --out=dist --version-string.CompanyName=CE --version-string.FileDescription=CE --version-string.ProductName=\"glTF Viewer\"",
     "package:mac": "electron-packager . --overwrite --platform=darwin --arch=x64 --icon=assets/icons/glTF-Viewer.icns --out=dist",
     "package:linux": "electron-packager . gltf-viewer --overwrite --asar --platform=linux --arch=x64 --icon=assets/icons/glTF-Viewer.png --out=dist",
-    "watch": "watchify browser.js -o bundle.js -v",
+    "watch": "watchify --debug browser.js -o bundle.js -v",
     "start": "npm run build && node server.js",
     "dev": "concurrently \"npm run watch\" \"nodemon server.js\"",
     "dev:electron": "concurrently \"watchify browser.js -o bundle.js\" \"npm run electron\"",

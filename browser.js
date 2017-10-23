@@ -39,6 +39,23 @@ document.addEventListener('DOMContentLoaded', () => {
         FileSaver.saveAs(new Blob([new Uint8Array(window.contentBinary)], {type: 'model/gltf.binary'}), `output.glb`);
     }
   });
+  const closeBtnEl = document.querySelector('#close-btn');
+  closeBtnEl.addEventListener('click', function () {
+    if (!viewer) return;
+    viewer.clear();
+    rootName = '';
+    document.title = 'glTF Viewer';
+    // show dropzone UI elements
+    [].forEach.call(dropEl.children, (child) => {
+      if (child !== viewerEl) child.style.opacity = null;
+    });
+    // hide viewer
+    viewerEl.style.display = 'none';
+    // hide scene UI
+    closeBtnEl.style.display = 'none';
+    downloadBtnEl.style.display = 'none';
+    shareBtnEl.style.display = 'none';
+  });
   const shareBtnEl = document.querySelector('#share-btn');
   shareBtnEl.addEventListener('click', function () {
   viewer.renderImage(512,512,function(imageBlob) {
@@ -68,45 +85,58 @@ document.addEventListener('DOMContentLoaded', () => {
   const dropEl = document.querySelector('.dropzone');
   const dropCtrl = new DropController(dropEl);
 
-  dropCtrl.on('drop', ({rootFile, rootPath, fileMap}) => view(rootFile, rootPath, fileMap));
+  dropCtrl.on('drop', ({containerFile, rootFile, rootPath, fileMap}) => view(containerFile, rootFile, rootPath, fileMap));
   dropCtrl.on('dropstart', () => (spinnerEl.style.display = ''));
   dropCtrl.on('droperror', () => (spinnerEl.style.display = 'none'));
 
-  function view (rootFile, rootPath, fileMap, params = {}) {
+  function view (containerFile, rootFile, rootPath, fileMap, params = {}) {
+    console.log(containerFile);
     console.log(rootFile);
     console.log(rootPath);
     console.log(fileMap);
     console.log(params);
+    // hide dropzone UI elements (but don't remove them, so Open menu button still works)
+    [].forEach.call(dropEl.children, (child) => {
+      if (child !== viewerEl) child.style.opacity = 0;
+    });
     if (!viewer) {
       viewerEl = document.createElement('div');
       viewerEl.classList.add('viewer');
-      dropEl.innerHTML = '';
       dropEl.appendChild(viewerEl);
       viewer = new Viewer(viewerEl, {kiosk: !!hash.kiosk});
     } else {
       viewer.clear();
+      // show viewer
+      viewerEl.style.display = null;
     }
 
     const fileURL = typeof rootFile === 'string'
       ? rootFile
       : URL.createObjectURL(rootFile);
 
+    rootName = '';
+    if (!rootName && params.hasOwnProperty('name')) {
+      rootName = params.name;
+    }
+    if (!rootName && typeof containerFile === 'string') {
+      rootName = containerFile.match(/([^\/.]+)(\.[^\/]*)?$/)[1];
+    }
+    if (!rootName && typeof rootFile === 'string') {
+      rootName = rootFile.match(/([^\/.]+)(\.[^\/]*)?$/)[1];
+    }
+    if (fileMap.size) {
+      files = fileMap;
+      if (!rootName && containerFile) {
+        rootName = containerFile.name.match(/([^\/.]+)(\.[^\/]*)?$/)[1];
+      }
+      if (!rootName && rootFile) {
+        rootName = rootFile.name.match(/([^\/.]+)(\.[^\/]*)?$/)[1];
+      }
+    }
+
     const postLoad = () => {
-      rootName = '';
-      if (params.hasOwnProperty('name')) {
-        rootName = params.name;
-      }
-      else if (typeof rootFile === 'string') {
-        rootName = rootFile.match(/([^\/]+)\.(gltf|glb)$/)[1];
-      }
-      else if (typeof rootFile === 'string') {
-        rootName = rootFile.match(/([^\/]+)\.(gltf|glb)$/)[1];
-      }
-      else if (fileMap.size) {
-        files = fileMap;
-        rootName = rootFile.name.match(/([^\/]+)\.(gltf|glb)$/)[1];
-      }
       document.title = rootName == '' ? 'glTF Viewer' : rootName + ' - glTF';
+      closeBtnEl.style.display = null;
       if (window.contentBinary) {
         downloadBtnEl.style.display = (!params.hasOwnProperty('canSave') || params.canSave) ? null : 'none';
         shareBtnEl.style.display = (!params.hasOwnProperty('canShare') || params.canShare) ? null : 'none';
@@ -124,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     spinnerEl.style.display = '';
-    viewer.load(fileURL, rootPath, fileMap, params.view || {})
+    viewer.load(rootName, containerFile || rootFile, fileURL, rootPath, fileMap, params.view || {})
       .then(postLoad)
       .then(cleanup)
       .catch((error) => {
@@ -151,10 +181,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return new Promise.resolve({});
       }
     }).then(data=>{
-      view(hash.model, '', new Map(), data);
+      view(hash.model, hash.model, '', new Map(), data);
     });
   } else if (hash.model) {
-    view(hash.model, '', new Map());
+    view(hash.model, hash.model, '', new Map());
   }
 
 });

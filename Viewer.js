@@ -4,6 +4,7 @@ const THREE = window.THREE = require('three');
 const Stats = require('./lib/stats.min.js');
 const environments = require('./assets/environment/index');
 const createVignetteBackground = require('three-vignette-background');
+const SceneInformation = require('./SceneInformation');
 
 require('./lib/draco/draco_decoder');
 require('./lib/draco/DRACOLoader');
@@ -24,6 +25,7 @@ module.exports = class Viewer {
     this.mixer = null;
     this.clips = [];
     this.gui = null;
+    this.sceneInformation = null;
 
     this.state = {
       environment: environments[1].name,
@@ -149,9 +151,19 @@ module.exports = class Viewer {
 
   }
 
-  load ( url, rootPath, assetMap, initState = {} ) {
+  load ( rootName, containerFile, url, rootPath, assetMap, initState = {} ) {
 
     return new Promise((resolve, reject) => {
+
+      const loadedURLs = new Map();
+
+      const manager = new THREE.LoadingManager((url) => {
+        loadedURLs.set(url, { status: 'Started' });
+      }, (url) => {
+        loadedURLs[url].status = 'OK';
+      }, (url) => {
+        loadedURLs[url].status = 'Error';
+      });
 
       const loader = new THREE.GLTFLoader();
       loader.setDRACOLoader( new THREE.DRACOLoader( undefined, {type: 'js'} ) );
@@ -178,6 +190,7 @@ module.exports = class Viewer {
         const scene = gltf.scene || gltf.scenes[0];
         const clips = gltf.animations || [];
         const contentBinary = gltf.binaryData;
+        this.setSceneInformation(rootName, containerFile, url, rootPath, assetMap, gltf, loader, loadedURLs);
         this.setContent(scene, clips, contentBinary, initState);
 
         blobURLs.forEach(URL.revokeObjectURL);
@@ -256,11 +269,14 @@ module.exports = class Viewer {
     this.updateGUI();
     this.updateEnvironment();
     this.updateDisplay();
+    this.updateGUISceneInformation();
 
     window.content = this.content;
     window.contentBinary = this.contentBinary;
-    console.info('[glTF Viewer] THREE.Scene exported as `window.content`, binary blob version as `window.contentBinary`.');
+    window.contentInfo = this.sceneInformation;
+    console.info('[glTF Viewer] THREE.Scene exported as `window.content`, binary blob version as `window.contentBinary`, metadata as `window.contentInfo`.');
     this.printGraph(this.content);
+    console.log(this.sceneInformation);
 
   }
 
@@ -460,6 +476,10 @@ module.exports = class Viewer {
     perfLi.classList.add('gui-stats');
     perfFolder.__ul.appendChild( perfLi );
 
+    // Scene Information
+    this.infoFolder = gui.addFolder('Scene Information');
+    this.infoGUI = { folder: this.infoFolder, items: new Map() };
+
     const guiWrap = document.createElement('div');
     this.el.appendChild( guiWrap );
     guiWrap.classList.add('gui-wrap');
@@ -546,7 +566,6 @@ module.exports = class Viewer {
   clear () {
 
     this.scene.remove( this.content );
-
   }
 
   getState() {
@@ -561,4 +580,176 @@ module.exports = class Viewer {
     return copy;
   }
 
+  setSceneInformation( rootName, containerFile, url, rootPath, assetMap, gltf, loader, externalURLs) {
+    const parser = loader.parser;
+    const json = gltf.json;
+    var info = this.sceneInformation = new SceneInformation();
+    info.name = rootName;
+    var fullfilename;
+    if (!fullfilename && containerFile !== undefined) {
+      if (typeof containerFile === 'string') {
+        fullfilename = containerFile;
+      }
+      else if (containerFile.name) {
+        fullfilename = containerFile.name;
+      }
+    }
+    if (!fullfilename && url !== undefined) {
+      if (typeof url === 'string') {
+        fullfilename = url;
+      }
+      else if (url.name) {
+        fullfilename = url.name;
+      }
+    }
+    if (!fullfilename) {
+      info.filename = '';
+    }
+    else {
+      info.filename = fullfilename.match(/([^\/\\]+)$/)[1];
+    }
+
+    info.format.name = 'glTF';
+    info.format.version = json.asset.version;
+    info.format.extensions = json.extensionsUsed || [];
+
+	const EXTMAP = {
+	  'gltf': 'model/gltf',
+	  'glb': 'model/gltf.binary',
+	  'zip': 'application/zip'
+	};
+
+    // reverse of EXTMAP
+    const MIMEMAP = Object.entries(EXTMAP).reduce((r,x) => { r[x[1]] = x[0]; return r; }, {});
+
+    if (gltf.binaryData) {
+      info.container.size = gltf.binaryData.size || gltf.binaryData.byteLength;
+      info.container.mimetype = 'model/gltf.binary';
+      info.container.extension = 'glb';
+      info.format.extensions.push('KHR_binary_glTF');
+    }
+
+    if (containerFile !== undefined)
+    {
+      if (typeof containerFile === 'string') {
+        info.container.extension = fullfilename.toLowerCase().match(/.([^.\/\\]+)$/)[1] || info.container.extension;
+        if (info.container.extension in EXTMAP) {
+          info.container.mimetype = EXTMAP[info.container.extension];
+        }
+        //info.internalFiles.push(containerFile);
+      }
+      else { // assuming it's a file
+        info.container.mimetype = containerFile.type || info.container.mimetype;
+        info.container.size = containerFile.size || info.container.size;
+        if (info.container.mimetype in MIMEMAP) {
+          info.container.extension = MIMEMAP[info.container.mimetype];
+        }
+        //info.internalFiles.push(containerFile.name || rootName);
+      }
+    }
+
+    var totalAssetSize = 0;
+    if (assetMap !== undefined) {
+      for(const [k,v] of assetMap.entries()) {
+        info.internalFiles[k] = v.size || 0;
+        totalAssetSize += v.size || 0;
+      }
+    }
+
+    if (externalURLs !== undefined) {
+      for(const [k,v] of externalURLs.entries()) {
+        info.externalURLs[k] = k.status || '';
+      }
+    }
+
+    if (totalAssetSize > 0) {
+      info.size = totalAssetSize;
+    }
+    else if (info.container.size > 0) {
+      info.size = info.container.size;
+    }
+
+    return info;
+  }
+
+  updateGUISceneInformation () {
+    this.updateGUIInfoFolder(this.sceneInformation, this.infoGUI );
+  }
+
+  updateGUIInfoFolder (info, gui) {
+    // compute the sets of GUI elements that should exist given the data in info
+    var validControllerKeys = [];
+    var validFolderKeys = [];
+    const inArray = Array.isArray(info);
+    for (var key of Object.keys(info)) {
+      var value = info[key];
+      if (typeof value === 'object'/* && !Array.isArray(value)*/) { // folder
+        if (Object.keys(value).length > 0) {
+          validFolderKeys.push(key);
+        }
+      }
+      else { // controller
+        if ( value !== undefined && value !== '' &&
+             !(Array.isArray(value) && value.length == 0) ) {
+          validControllerKeys.push(key);
+        }
+      }
+    }
+    // remove properties that are no longer there
+    var toRemoveKeys = [];
+    for (var [gkey, value] of gui.items.entries()) {
+      var key = gkey.substring(1);
+      if (value.hasOwnProperty('folder')) { // folder
+        if (validFolderKeys.indexOf(key) == -1) {
+          //value.folder.destroy();
+          //toRemoveKeys.push(key);
+          // TODO: removing folders does not appear to be working
+          // instead, we recursively remove all controllers by using an empty info
+          this.updateGUIInfoFolder({},value);
+        }
+      }
+      else { // controller
+        // always remove from now, don't know now to link it to new instance
+        gui.folder.remove(value.controller);
+        toRemoveKeys.push(key);
+      }
+    };
+    for (var key of toRemoveKeys) {
+      var gkey = '@' + key;
+      gui.items.delete(gkey);
+    }
+    // then add or update GUIs
+    for (var key of validControllerKeys) {
+      var gkey = '@' + key;
+      var value = info[key];
+      //console.log('GUI for',key,' in ',info);
+      var controller;
+      if (Array.isArray(value)) {
+        var conv = {};
+        conv[key] = value.join('\n');
+        controller = gui.folder.add(conv, key);
+      }
+      else if (inArray) {
+        var conv = {};
+        conv[value] = '';
+        controller = gui.folder.add(conv, value);
+      }
+      else {
+        controller = gui.folder.add(info, key);
+      }
+      gui.items.set(gkey, { controller: controller });
+    }
+    for (var key of validFolderKeys) {
+      var gkey = '@' + key;
+      var value = info[key];
+      if (!gui.items.has(gkey)) { // new folder
+        var folder = gui.folder.addFolder(key);
+        if (key === 'format') {
+          folder.open();
+        }
+        gui.items.set(gkey, { folder: folder, items : new Map() });
+      }
+      this.updateGUIInfoFolder(value, gui.items.get(gkey));
+    }
+  }
 };

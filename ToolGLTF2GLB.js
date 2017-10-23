@@ -104,7 +104,7 @@ module.exports = class ToolGLTF2GLB {
           var bufferView = { buffer: 0, byteOffset: inputImageStartInOutputBuffer[i], byteLength: file.size };
           var mimeType = mime.lookup(uri);
           if (mimeType) {
-            bufferView.mimeType = mimeType;
+            image.mimeType = mimeType;
           }
           else {
             console.log('ERROR: unknown image extension',uri);
@@ -165,7 +165,8 @@ module.exports = class ToolGLTF2GLB {
     outputBinaryItems.push(jsonHeaderArray);
     outputBinaryItems.push(jsonArray);
     if (jsonPadding) {
-      outputBinaryItems.push(new Uint8Array(jsonPadding));
+      //outputBinaryItems.push(new Uint8Array(jsonPadding)); -> fails, because we need to insert spaces (0x20)
+      outputBinaryItems.push(Uint8Array.from({length: jsonPadding}, x => 0x20));
     }
     outputBinaryItems.push(binaryHeaderArray);
     for (var c of outputChunks) {

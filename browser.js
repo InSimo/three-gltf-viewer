@@ -27,7 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let viewer;
   let viewerEl;
 
-  let files;
   let rootName = '';
 
   const spinnerEl = document.querySelector('.spinner');
@@ -125,7 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
       rootName = rootFile.match(/([^\/.]+)(\.[^\/]*)?$/)[1];
     }
     if (fileMap.size) {
-      files = fileMap;
       if (!rootName && containerFile) {
         rootName = containerFile.name.match(/([^\/.]+)(\.[^\/]*)?$/)[1];
       }

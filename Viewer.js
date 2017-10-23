@@ -608,7 +608,7 @@ module.exports = class Viewer {
 
     info.format.name = 'glTF';
     info.format.version = json.asset.version;
-    info.format.extensions = json.extensionUsed || [];
+    info.format.extensions = json.extensionsUsed || [];
 
 	const EXTMAP = {
 	  'gltf': 'model/gltf',

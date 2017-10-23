@@ -4,12 +4,15 @@ const DropController = require('./DropController');
 const queryString = require('query-string');
 const JSZip = require('jszip');
 const FileSaver = require('file-saver');
+const ToolGLTF2GLB = require('./ToolGLTF2GLB');
 
 if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('The File APIs are not fully supported in this browser.');
 } else if (!Detector.webgl) {
   console.error('WebGL is not supported in this browser.');
 }
+
+var ToolsAvailable = [ new ToolGLTF2GLB() ];
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -29,13 +32,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let rootName = '';
 
+  const updateButtons = ( params = {} ) => {
+    if (window.content) {
+      closeBtnEl.style.display = null;
+    }
+    if (window.contentBinary) {
+      downloadBtnEl.style.display = (!params.hasOwnProperty('canSave') || params.canSave) ? null : 'none';
+      shareBtnEl.style.display = (!params.hasOwnProperty('canShare') || params.canShare) ? null : 'none';
+    }
+    else {
+      downloadBtnEl.style.display = 'none';
+      shareBtnEl.style.display = 'none';
+    }
+  };
+
   const spinnerEl = document.querySelector('.spinner');
   spinnerEl.style.display = 'none';
 
   const downloadBtnEl = document.querySelector('#download-btn');
   downloadBtnEl.addEventListener('click', function () {
     if (window.contentBinary) {
-        FileSaver.saveAs(new Blob([new Uint8Array(window.contentBinary)], {type: 'model/gltf.binary'}), `output.glb`);
+      FileSaver.saveAs(window.contentBinary, (rootName||'output')+'.glb');
     }
   });
   const closeBtnEl = document.querySelector('#close-btn');
@@ -59,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
   shareBtnEl.addEventListener('click', function () {
   viewer.renderImage(512,512,function(imageBlob) {
     var formData = new FormData();
-    var glbBlob = new Blob([new Uint8Array(window.contentBinary)], {type: 'model/gltf.binary'});
+    var glbBlob = window.contentBinary;
     var viewState = viewer.getState();
     //viewState.name = rootName;
     var viewBlob = new Blob([JSON.stringify(viewState)], {type: 'application/json'});
@@ -81,6 +98,21 @@ document.addEventListener('DOMContentLoaded', () => {
           });
     });
   });
+
+  const toolsMenuEl = document.querySelector('#tools-menu');
+  const toolsMenuElChild0 = toolsMenuEl.children[0];
+  for(var i = 0; i < ToolsAvailable.length; ++i) {
+    var tool = ToolsAvailable[i];
+    var button = document.createElement("button");
+    button.setAttribute('class','item');
+    button.innerHTML = '<span class="icon">'+tool.icon+'</span>&nbsp;&nbsp;'+tool.name+'</button>';
+    toolsMenuEl.insertBefore(button,toolsMenuElChild0);
+    button.addEventListener('click', function() {
+      tool.run();
+      updateButtons();
+    });
+  }
+
   const dropEl = document.querySelector('.dropzone');
   const dropCtrl = new DropController(dropEl);
 
@@ -134,14 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const postLoad = () => {
       document.title = rootName == '' ? 'glTF Viewer' : rootName + ' - glTF';
-      closeBtnEl.style.display = null;
-      if (window.contentBinary) {
-        downloadBtnEl.style.display = (!params.hasOwnProperty('canSave') || params.canSave) ? null : 'none';
-        shareBtnEl.style.display = (!params.hasOwnProperty('canShare') || params.canShare) ? null : 'none';
-      }
-      else {
-        console.warn('NOT BINARY');
-      }
+      updateButtons(params);
     };
 
     const cleanup = () => {

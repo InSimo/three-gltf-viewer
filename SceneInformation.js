@@ -40,4 +40,14 @@ module.exports = class SceneInformation {
     }
     return true;
   }
+  /**
+   * Check if this scene match the given container, either with the mimetype or the file extension
+   * @param  {string} mimetype
+   * @param  {string} extension
+   */
+  matchContainer(mimetype, extension = '') {
+    if (mimetype && this.container.mimetype && mimetype == this.container.mimetype) return true;
+    if (extension && this.container.extension && extension == this.container.extension) return true;
+    return false;
+  }
 }

@@ -6,6 +6,7 @@ const JSZip = require('jszip');
 const FileSaver = require('file-saver');
 const renderjson = require('renderjson');
 const ToolGLTF2GLB = require('./ToolGLTF2GLB');
+const ToolGLTFValidator = require('./ToolGLTFValidator');
 
 if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('The File APIs are not fully supported in this browser.');
@@ -13,7 +14,10 @@ if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('WebGL is not supported in this browser.');
 }
 
-var ToolsAvailable = [ new ToolGLTF2GLB() ];
+var ToolsAvailable = [
+  new ToolGLTFValidator(),
+  new ToolGLTF2GLB()
+];
 
 document.addEventListener('DOMContentLoaded', () => {
 

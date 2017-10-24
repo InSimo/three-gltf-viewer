@@ -189,9 +189,9 @@ module.exports = class Viewer {
 
         const scene = gltf.scene || gltf.scenes[0];
         const clips = gltf.animations || [];
-        const contentBinary = gltf.binaryData;
+        const contentBinary = gltf.binaryBlob;
         this.setSceneInformation(rootName, containerFile, url, rootPath, assetMap, gltf, loader, loadedURLs);
-        this.setContent(scene, clips, contentBinary, initState);
+        this.setContent(scene, clips, gltf.json, contentBinary, assetMap, initState);
 
         blobURLs.forEach(URL.revokeObjectURL);
 
@@ -208,7 +208,7 @@ module.exports = class Viewer {
    * @param {Array<THREE.AnimationClip} clips
    * @param {Blob} contentBinary
    */
-  setContent ( object, clips, contentBinary, initState = {} ) {
+  setContent ( object, clips, contentGLTF, contentBinary, assetMap, initState = {} ) {
 
     this.clear();
 
@@ -238,7 +238,9 @@ module.exports = class Viewer {
     object.name = 'glTF';
     this.scene.add(object);
     this.content = object;
+    this.contentGLTF = contentGLTF;
     this.contentBinary = contentBinary;
+    this.contentFiles = assetMap;
 
     this.state.addLights = true;
     this.content.traverse((node) => {
@@ -272,9 +274,17 @@ module.exports = class Viewer {
     this.updateGUISceneInformation();
 
     window.content = this.content;
+    window.contentGLTF = this.contentGLTF;
     window.contentBinary = this.contentBinary;
+    window.contentFiles = this.contentFiles;
     window.contentInfo = this.sceneInformation;
-    console.info('[glTF Viewer] THREE.Scene exported as `window.content`, binary blob version as `window.contentBinary`, metadata as `window.contentInfo`.');
+    console.info('[glTF Viewer] THREE.Scene exported as `window.content`, GLTF as `window.contentGLTF`, metadata as `window.contentInfo`.');
+    if (this.contentBinary) {
+      console.log('binary blob version as `window.contentBinary`');
+    }
+    if (this.contentFiles) {
+      console.log('binary files version as `window.contentFiles`');
+    }
     this.printGraph(this.content);
     console.log(this.sceneInformation);
 

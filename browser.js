@@ -4,12 +4,20 @@ const DropController = require('./DropController');
 const queryString = require('query-string');
 const JSZip = require('jszip');
 const FileSaver = require('file-saver');
+const renderjson = require('renderjson');
+const ToolGLTF2GLB = require('./ToolGLTF2GLB');
+const ToolGLTFValidator = require('./ToolGLTFValidator');
 
 if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('The File APIs are not fully supported in this browser.');
 } else if (!Detector.webgl) {
   console.error('WebGL is not supported in this browser.');
 }
+
+var ToolsAvailable = [
+  new ToolGLTFValidator(),
+  new ToolGLTF2GLB()
+];
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -27,8 +35,37 @@ document.addEventListener('DOMContentLoaded', () => {
   let viewer;
   let viewerEl;
 
-  let files;
   let rootName = '';
+
+  // make sure only one menu is visible at any given time
+  // we can't use radio buttons because we do need to be able to have none
+  // and we want the main menu buttons to behave like a toggle
+  let menuCheckBoxes = document.querySelectorAll('.menu-checkbox');
+  for (let cb of menuCheckBoxes) {
+    cb.addEventListener( 'change', function() {
+    if(this.checked) {
+      for (let cb2 of menuCheckBoxes) {
+        if (cb2 !== this && cb2.checked) {
+          cb2.checked = false;
+        }
+      }
+    }
+    });
+  }
+
+  const updateButtons = ( params = {} ) => {
+    if (window.content) {
+      closeBtnEl.style.display = null;
+    }
+    if (window.contentBinary) {
+      downloadBtnEl.style.display = (!params.hasOwnProperty('canSave') || params.canSave) ? null : 'none';
+      shareBtnEl.style.display = (!params.hasOwnProperty('canShare') || params.canShare) ? null : 'none';
+    }
+    else {
+      downloadBtnEl.style.display = 'none';
+      shareBtnEl.style.display = 'none';
+    }
+  };
 
   const spinnerEl = document.querySelector('.spinner');
   spinnerEl.style.display = 'none';
@@ -36,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const downloadBtnEl = document.querySelector('#download-btn');
   downloadBtnEl.addEventListener('click', function () {
     if (window.contentBinary) {
-        FileSaver.saveAs(new Blob([new Uint8Array(window.contentBinary)], {type: 'model/gltf.binary'}), `output.glb`);
+      FileSaver.saveAs(window.contentBinary, (rootName||'output')+'.glb');
     }
   });
   const closeBtnEl = document.querySelector('#close-btn');
@@ -47,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.title = 'glTF Viewer';
     // show dropzone UI elements
     [].forEach.call(dropEl.children, (child) => {
-      if (child !== viewerEl) child.style.opacity = null;
+      if (child.classList.contains('noscene')) child.style.opacity = null;
     });
     // hide viewer
     viewerEl.style.display = 'none';
@@ -60,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
   shareBtnEl.addEventListener('click', function () {
   viewer.renderImage(512,512,function(imageBlob) {
     var formData = new FormData();
-    var glbBlob = new Blob([new Uint8Array(window.contentBinary)], {type: 'model/gltf.binary'});
+    var glbBlob = window.contentBinary;
     var viewState = viewer.getState();
     //viewState.name = rootName;
     var viewBlob = new Blob([JSON.stringify(viewState)], {type: 'application/json'});
@@ -82,6 +119,71 @@ document.addEventListener('DOMContentLoaded', () => {
           });
     });
   });
+
+  const panelTitleEl = document.querySelector('#panel-title');
+  const panelContentEl = document.querySelector('#panel-content');
+  const panelCheckBox = document.querySelector('#panel-input');
+
+  const toolsMenuEl = document.querySelector('#tools-menu');
+  const toolsMenuElChild0 = toolsMenuEl.children[0];
+
+  for(let i = 0; i < ToolsAvailable.length; ++i) {
+    let tool = ToolsAvailable[i];
+    let button = document.createElement("button");
+    button.setAttribute('class','item');
+    button.innerHTML = '<span class="icon">'+tool.icon+'</span>&nbsp;&nbsp;'+tool.name+'</button>';
+    toolsMenuEl.insertBefore(button,toolsMenuElChild0);
+    button.addEventListener('click', function(e) {
+      spinnerEl.style.display = '';
+      panelTitleEl.innerHTML = tool.title || tool.name;
+      panelContentEl.innerHTML = 'Processing...';
+      panelContentEl.classList.remove('status-wip','status-ok','status-error');
+      panelContentEl.classList.add('status-wip');
+      try {
+        var p = tool.run();
+        if (p) {
+          panelCheckBox.checked = true;
+          p.then(function(res) {
+            console.log(res);
+            spinnerEl.style.display = 'none';
+            panelContentEl.classList.remove('status-wip');
+            panelContentEl.classList.add((res.error || res.errors) ? 'status-error' : 'status-ok');
+            if (typeof res === 'string') {
+              panelContentEl.innerHTML = res;
+            }
+            else {
+              //panelContentEl.innerHTML = JSON.stringify(res, null, 2);
+              panelContentEl.innerHTML = ''; // clear the panel content
+              var resEl = renderjson.set_show_to_level(2)(res);
+              panelContentEl.appendChild(resEl);
+            }
+          })
+            .catch(function (err) {
+              console.error(err);
+              spinnerEl.style.display = 'none';
+              panelContentEl.classList.remove('status-wip');
+              panelContentEl.classList.add('status-error');
+              panelContentEl.innerHTML = err;
+            });
+        }
+        else {
+          panelContentEl.classList.remove('status-wip');
+          panelContentEl.classList.add('status-ok');
+          panelContentEl.innerHTML = '';
+        }
+      }
+      catch (err) {
+        console.error(err);
+        spinnerEl.style.display = 'none';
+          panelCheckBox.checked = true;
+        panelContentEl.classList.remove('status-wip');
+        panelContentEl.classList.add('status-error');
+        panelContentEl.innerHTML = err;
+      }
+      updateButtons();
+    });
+  }
+
   const dropEl = document.querySelector('.dropzone');
   const dropCtrl = new DropController(dropEl);
 
@@ -97,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(params);
     // hide dropzone UI elements (but don't remove them, so Open menu button still works)
     [].forEach.call(dropEl.children, (child) => {
-      if (child !== viewerEl) child.style.opacity = 0;
+      if (child.classList.contains('noscene')) child.style.opacity = 0;
     });
     if (!viewer) {
       viewerEl = document.createElement('div');
@@ -125,7 +227,6 @@ document.addEventListener('DOMContentLoaded', () => {
       rootName = rootFile.match(/([^\/.]+)(\.[^\/]*)?$/)[1];
     }
     if (fileMap.size) {
-      files = fileMap;
       if (!rootName && containerFile) {
         rootName = containerFile.name.match(/([^\/.]+)(\.[^\/]*)?$/)[1];
       }
@@ -136,14 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const postLoad = () => {
       document.title = rootName == '' ? 'glTF Viewer' : rootName + ' - glTF';
-      closeBtnEl.style.display = null;
-      if (window.contentBinary) {
-        downloadBtnEl.style.display = (!params.hasOwnProperty('canSave') || params.canSave) ? null : 'none';
-        shareBtnEl.style.display = (!params.hasOwnProperty('canShare') || params.canShare) ? null : 'none';
-      }
-      else {
-        console.warn('NOT BINARY');
-      }
+      updateButtons(params);
     };
 
     const cleanup = () => {

@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (window.contentBinary) {
       downloadBtnEl.style.display = (!params.hasOwnProperty('canSave') || params.canSave) ? null : 'none';
-      shareBtnEl.style.display = (!params.hasOwnProperty('canShare') || params.canShare) ? null : 'none';
+      shareBtnEl.style.display = IS_UPLOAD_SUPPORTED && (!params.hasOwnProperty('canShare') || params.canShare) ? null : 'none';
     }
     else {
       downloadBtnEl.style.display = 'none';
@@ -262,8 +262,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (hash.kiosk) {
-    const headerEl = document.querySelector('header');
-    headerEl.style.display = 'none';
+    const headerEls = document.querySelectorAll('header');
+    for (let headerEl of headerEls) {
+      headerEl.style.display = 'none';
+    }
   }
   if (hash.json) {
     fetch(hash.json)

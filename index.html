@@ -1,15 +1,33 @@
 <!DOCTYPE html>
-<html>
+<html prefix="og: http://ogp.me/ns#">
 <head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>glTF</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="author" content="Don McCurdy, Jeremie Allard">
-  <meta name="description" content="Drag-and-drop preview tool for glTF 2.0 3D models.">
+  <meta name="description" content="Drag-and-drop preview and share tool for glTF 2.0 3D models.">
   <link rel="shortcut icon" href="assets/favicon.ico">
+  <!-- Open Graph Protocol tags -->
+  <!-- -{{#name}}-><meta property="og:title" content="{{name}} - glTF" /><!-{{/name}}- -->
+  <!-- -{{#glb}}-><meta property="og:description" content="glTF 3D Object{{#site}}, shared on {{site}}{{/site}}" /><!-{{/glb}}- -->
+  <!-- -{{#url}}-><meta property="og:url" content="{{{url}}}" /><!-{{/url}}- -->
+  <!-- -{{#image}}-><meta property="og:image" content="{{{baseUrl}}}v{{glb}}/{{image}}.png" /><!-{{/image}}- -->
+  <!-- -{{#site}}-><meta property="og:site_name" content="{{site}}" /><!-{{/site}}- -->
+  <!-- Twitter tags -->
+  <meta name="twitter:card" content="summary_large_image">
+  <!-- -{{#name}}-><meta name="twitter:title" content="{{name}} - glTF" /><!-{{/name}}- -->
+  <!-- -{{#image}}-><meta name="twitter:image" content="{{{baseUrl}}}v{{glb}}/{{image}}.png" /><!-{{/image}}- -->
+  <!-- -{{#glb}}-><meta name="twitter:description" content="glTF 3D Object{{#site}}, shared on {{site}}{{/site}}" /><!-{{/glb}}- -->
+  <!-- end tags -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css?family=Raleway:300,400" rel="stylesheet">
+  <script type="text/javascript">
+    var IS_UPLOAD_SUPPORTED = true;
+// {{^canUpload}}
+    IS_UPLOAD_SUPPORTED = false;
+// {{/canUpload}}
+  </script>
   <script src="lib/dat.gui.min.js"></script>
   <script src="bundle.js?v=5fb2e0"></script>
 </head>
@@ -30,11 +48,14 @@
     <span class="separator"> | </span>
     <button id="share-btn" class="item" style="display: none;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M14.68,12.621c-0.9,0-1.702,0.43-2.216,1.09l-4.549-2.637c0.284-0.691,0.284-1.457,0-2.146l4.549-2.638c0.514,0.661,1.315,1.09,2.216,1.09c1.549,0,2.809-1.26,2.809-2.808c0-1.548-1.26-2.809-2.809-2.809c-1.548,0-2.808,1.26-2.808,2.809c0,0.38,0.076,0.741,0.214,1.073l-4.55,2.638c-0.515-0.661-1.316-1.09-2.217-1.09c-1.548,0-2.808,1.26-2.808,2.809s1.26,2.808,2.808,2.808c0.9,0,1.702-0.43,2.217-1.09l4.55,2.637c-0.138,0.332-0.214,0.693-0.214,1.074c0,1.549,1.26,2.809,2.808,2.809c1.549,0,2.809-1.26,2.809-2.809S16.229,12.621,14.68,12.621M14.68,2.512c1.136,0,2.06,0.923,2.06,2.06S15.815,6.63,14.68,6.63s-2.059-0.923-2.059-2.059S13.544,2.512,14.68,2.512M5.319,12.061c-1.136,0-2.06-0.924-2.06-2.06s0.923-2.059,2.06-2.059c1.135,0,2.06,0.923,2.06,2.059S6.454,12.061,5.319,12.061M14.68,17.488c-1.136,0-2.059-0.922-2.059-2.059s0.923-2.061,2.059-2.061s2.06,0.924,2.06,2.061S15.815,17.488,14.68,17.488"></path></svg>&nbsp;&nbsp;Share</button>
   </header>
-  <!-- based on https://tutorialzine.com/2015/08/quick-tip-css-only-dropdowns-with-the-checkbox-hack -->
   <input class="menu-checkbox" type="checkbox" id="credits-menu-input" checked>
   <header class="menu" id="credits-menu">
     <a class="item layout-md" target="_blank" href="https://github.com/KhronosGroup/glTF/tree/master/specification/2.0">
       glTF<br>2.0
+    </a>
+    <span class="separator layout-md"> | </span>
+    <a class="item layout-md" target="_blank" href="https://github.com/KhronosGroup/glTF-Validator/tree/2.0.0-dev.0">
+      glTF Validator<br>2.0.0-dev.0
     </a>
     <span class="separator layout-md"> | </span>
     <a class="item layout-md" target="_blank" href="https://github.com/mrdoob/three.js/tree/r87">
@@ -51,13 +72,9 @@
     </a>
     -->
     <span class="separator layout-md"> | </span>
-    <a class="item layout-md" target="_blank" href="https://github.com/donmccurdy/three-gltf-viewer">
-      GLTFViewer<br>master
-      <!--
-      <img src="data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMi41OCAzMS43NyI+PGRlZnM+PHN0eWxlPi5jbHMtMXtmaWxsOiNmZmY7ZmlsbC1ydWxlOmV2ZW5vZGQ7fTwvc3R5bGU+PC9kZWZzPjx0aXRsZT5HaXRIdWItTWFyazwvdGl0bGU+PHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMTUyLjYxLDM4My40NGExNi4yOSwxNi4yOSwwLDAsMC01LjE1LDMxLjc1LDAuODIsMC44MiwwLDAsMCwxLjExLS43OWMwLS4zOSwwLTEuNDEsMC0yLjc3LTQuNTMsMS01LjQ5LTIuMTgtNS40OS0yLjE4YTQuMzEsNC4zMSwwLDAsMC0xLjgxLTIuMzhjLTEuNDgtMSwuMTEtMSwwLjExLTFhMy40MiwzLjQyLDAsMCwxLDIuNSwxLjY4LDMuNDcsMy40NywwLDAsMCw0Ljc0LDEuMzUsMy40OCwzLjQ4LDAsMCwxLDEtMi4xOGMtMy42Mi0uNDEtNy40Mi0xLjgxLTcuNDItOC4wNWE2LjMsNi4zLDAsMCwxLDEuNjgtNC4zNyw1Ljg2LDUuODYsMCwwLDEsLjE2LTQuMzFzMS4zNy0uNDQsNC40OCwxLjY3YTE1LjQ0LDE1LjQ0LDAsMCwxLDguMTYsMGMzLjExLTIuMTEsNC40OC0xLjY3LDQuNDgtMS42N2E1Ljg1LDUuODUsMCwwLDEsLjE2LDQuMzEsNi4yOSw2LjI5LDAsMCwxLDEuNjcsNC4zN2MwLDYuMjYtMy44MSw3LjYzLTcuNDQsOGEzLjg5LDMuODksMCwwLDEsMS4xMSwzYzAsMi4xOCwwLDMuOTMsMCw0LjQ3YTAuODIsMC44MiwwLDAsMCwxLjEyLjc4QTE2LjI5LDE2LjI5LDAsMCwwLDE1Mi42MSwzODMuNDRaIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMTM2LjMyIC0zODMuNDQpIi8+PC9zdmc+"
-           alt="Github">
-      -->
-    </a>
+    <span class="item layout-md"><a target="_blank" href="https://github.com/donmccurdy/three-gltf-viewer">
+      GLTFViewer<br>master</a> <a target="_blank" href="https://github.com/InSimo/three-gltf-viewer">(+patches)</a>
+    </span>
     <span class="flex-grow"></span>
     <label for="credits-menu-input" id="menu-close-btn" class="item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M10.185,1.417c-4.741,0-8.583,3.842-8.583,8.583c0,4.74,3.842,8.582,8.583,8.582S18.768,14.74,18.768,10C18.768,5.259,14.926,1.417,10.185,1.417 M10.185,17.68c-4.235,0-7.679-3.445-7.679-7.68c0-4.235,3.444-7.679,7.679-7.679S17.864,5.765,17.864,10C17.864,14.234,14.42,17.68,10.185,17.68 M10.824,10l2.842-2.844c0.178-0.176,0.178-0.46,0-0.637c-0.177-0.178-0.461-0.178-0.637,0l-2.844,2.841L7.341,6.52c-0.176-0.178-0.46-0.178-0.637,0c-0.178,0.176-0.178,0.461,0,0.637L9.546,10l-2.841,2.844c-0.178,0.176-0.178,0.461,0,0.637c0.178,0.178,0.459,0.178,0.637,0l2.844-2.841l2.844,2.841c0.178,0.178,0.459,0.178,0.637,0c0.178-0.176,0.178-0.461,0-0.637L10.824,10z"></path></svg></label>
   </header>

@@ -5,8 +5,7 @@ const app = express();
 const path = require("path");
 const multer  = require('multer');
 const crypto = require('crypto');
-
-app.use(express.static(__dirname));
+const mustache = require('mustache');
 
 const mkdirpSync = function (dirParts) {
     for (let i = 1; i <= dirParts.length; i++) {
@@ -35,8 +34,35 @@ function base64normal(base64) {
 var uploadDir = mkdirpSync(['data','uploads']);
 var upload = multer({ dest: uploadDir+path.sep });
 
+function sendIndex(req, res, json = {}) {
+  var host = req.get('host');
+  var shareUrl = req.protocol + '://' + host + req.originalUrl;
+  var baseUrl = req.protocol + '://' + host + '/';
+  var filePath = path.join(__dirname,'index.html');
+  json.url = shareUrl;
+  json.baseUrl = baseUrl;
+  json.site = host;
+  json.canUpload = true;
+  //res.sendFile(filePath);
+  fs.readFile(filePath, function (err, content) {
+    if (err) throw err;
+    var rendered = mustache.render(content.toString(), json);
+    res.type('text/html');
+    res.end(rendered);
+  });
+}
+
 app.get('/', function(req, res) {
-    res.sendFile(path.join(__dirname,'index.html'));
+  //res.sendFile(path.join(__dirname,'index.html'));
+  sendIndex(req, res);
+});
+
+app.get('/favicon.ico', function(req, res) {
+  res.sendFile(path.join(__dirname,'assets','favicon.ico'));
+});
+
+app.get('/index.html', function(req, res) {
+  sendIndex(req, res);
 });
 
 //console.log(crypto.getHashes());
@@ -162,7 +188,24 @@ app.get('/v:hashb64', function(req, res) {
         res.status(404).send('Not found');
         return;
     }
-    res.sendFile(path.join(__dirname,'index.html'));
+  //res.sendFile(path.join(__dirname,'index.html'));
+  if (hindexb64 === undefined) {
+    json = { glb: hashb64 };
+    sendIndex(req, res, json);
+  }
+  else {
+    var hashIndex = new Buffer(base64normal(hindexb64),"base64").toString('hex');
+    var filePath = path.join(dir, hashIndex+'.json');
+    if (!fs.existsSync(filePath)) {
+      res.status(404).send('Not found');
+      return;
+    }
+    fs.readFile(filePath, function (err, content) {
+      if (err) throw err;
+      json = JSON.parse(content);
+      sendIndex(req, res, json);
+    });
+  }
 });
 
 app.get('/v:hashb64/model.glb', function(req, res) {
@@ -225,6 +268,8 @@ app.get('/v:hashb64/:himageb64.png', function(req, res) {
     res.type('image/png');
     res.sendFile(file);
 });
+
+app.use(express.static(__dirname));
 
 app.use(function (err, req, res, next) {
     console.error(err.stack);

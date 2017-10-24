@@ -75,21 +75,6 @@ header ~ header {
   background: #454545;
 }
 
-.menu-checkbox,
-.panel-checkbox {
-  display: none;
-}
-
-.menu,
-.panel {
-  display: none;
-}
-
-.menu-checkbox:checked + .menu,
-.panel-checkbox:checked + .panel {
-  display: flex;
-}
-
 header .h1,
 header .item,
 header .separator {
@@ -114,7 +99,8 @@ header .item {
   -webkit-app-region: no-drag;
 }
 
-header .item:hover {
+header button.item:hover,
+header label.item:hover {
   background: #fff;
 }
 
@@ -364,6 +350,27 @@ header .h1 + .separator {
     transform: scale(1.0);
     opacity: 0;
   }
+}
+
+/******************************************************************************
+ * Dropdown menus
+ *
+ * https://tutorialzine.com/2015/08/quick-tip-css-only-dropdowns-with-the-checkbox-hack
+ */
+
+.menu-checkbox,
+.panel-checkbox {
+  display: none;
+}
+
+.menu,
+.panel {
+  display: none;
+}
+
+.menu-checkbox:checked + .menu,
+.panel-checkbox:checked + .panel {
+  display: flex;
 }
 
 /******************************************************************************

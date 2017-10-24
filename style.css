@@ -94,9 +94,17 @@ header .item {
   padding: 0 1em;
   font-size: 0.8rem;
   text-decoration: none;
+  color: #F5F5F5;
   transition: background ease 0.2s;
 
   -webkit-app-region: no-drag;
+}
+
+header .item a {
+  font-size: 0.8rem;
+  text-decoration: none;
+  color: #F5F5F5;
+ 
 }
 
 header button.item:hover,

@@ -4,6 +4,7 @@ const DropController = require('./DropController');
 const queryString = require('query-string');
 const JSZip = require('jszip');
 const FileSaver = require('file-saver');
+const renderjson = require('renderjson');
 const ToolGLTF2GLB = require('./ToolGLTF2GLB');
 
 if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
@@ -31,6 +32,22 @@ document.addEventListener('DOMContentLoaded', () => {
   let viewerEl;
 
   let rootName = '';
+
+  // make sure only one menu is visible at any given time
+  // we can't use radio buttons because we do need to be able to have none
+  // and we want the main menu buttons to behave like a toggle
+  let menuCheckBoxes = document.querySelectorAll('.menu-checkbox');
+  for (let cb of menuCheckBoxes) {
+    cb.addEventListener( 'change', function() {
+    if(this.checked) {
+      for (let cb2 of menuCheckBoxes) {
+        if (cb2 !== this && cb2.checked) {
+          cb2.checked = false;
+        }
+      }
+    }
+    });
+  }
 
   const updateButtons = ( params = {} ) => {
     if (window.content) {
@@ -63,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.title = 'glTF Viewer';
     // show dropzone UI elements
     [].forEach.call(dropEl.children, (child) => {
-      if (child !== viewerEl) child.style.opacity = null;
+      if (child.classList.contains('noscene')) child.style.opacity = null;
     });
     // hide viewer
     viewerEl.style.display = 'none';
@@ -99,16 +116,66 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  const panelTitleEl = document.querySelector('#panel-title');
+  const panelContentEl = document.querySelector('#panel-content');
+  const panelCheckBox = document.querySelector('#panel-input');
+
   const toolsMenuEl = document.querySelector('#tools-menu');
   const toolsMenuElChild0 = toolsMenuEl.children[0];
-  for(var i = 0; i < ToolsAvailable.length; ++i) {
-    var tool = ToolsAvailable[i];
-    var button = document.createElement("button");
+
+  for(let i = 0; i < ToolsAvailable.length; ++i) {
+    let tool = ToolsAvailable[i];
+    let button = document.createElement("button");
     button.setAttribute('class','item');
     button.innerHTML = '<span class="icon">'+tool.icon+'</span>&nbsp;&nbsp;'+tool.name+'</button>';
     toolsMenuEl.insertBefore(button,toolsMenuElChild0);
-    button.addEventListener('click', function() {
-      tool.run();
+    button.addEventListener('click', function(e) {
+      spinnerEl.style.display = '';
+      panelTitleEl.innerHTML = tool.title || tool.name;
+      panelContentEl.innerHTML = 'Processing...';
+      panelContentEl.classList.remove('status-wip','status-ok','status-error');
+      panelContentEl.classList.add('status-wip');
+      try {
+        var p = tool.run();
+        if (p) {
+          panelCheckBox.checked = true;
+          p.then(function(res) {
+            console.log(res);
+            spinnerEl.style.display = 'none';
+            panelContentEl.classList.remove('status-wip');
+            panelContentEl.classList.add((res.error || res.errors) ? 'status-error' : 'status-ok');
+            if (typeof res === 'string') {
+              panelContentEl.innerHTML = res;
+            }
+            else {
+              //panelContentEl.innerHTML = JSON.stringify(res, null, 2);
+              panelContentEl.innerHTML = ''; // clear the panel content
+              var resEl = renderjson.set_show_to_level(2)(res);
+              panelContentEl.appendChild(resEl);
+            }
+          })
+            .catch(function (err) {
+              console.error(err);
+              spinnerEl.style.display = 'none';
+              panelContentEl.classList.remove('status-wip');
+              panelContentEl.classList.add('status-error');
+              panelContentEl.innerHTML = err;
+            });
+        }
+        else {
+          panelContentEl.classList.remove('status-wip');
+          panelContentEl.classList.add('status-ok');
+          panelContentEl.innerHTML = '';
+        }
+      }
+      catch (err) {
+        console.error(err);
+        spinnerEl.style.display = 'none';
+          panelCheckBox.checked = true;
+        panelContentEl.classList.remove('status-wip');
+        panelContentEl.classList.add('status-error');
+        panelContentEl.innerHTML = err;
+      }
       updateButtons();
     });
   }
@@ -128,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(params);
     // hide dropzone UI elements (but don't remove them, so Open menu button still works)
     [].forEach.call(dropEl.children, (child) => {
-      if (child !== viewerEl) child.style.opacity = 0;
+      if (child.classList.contains('noscene')) child.style.opacity = 0;
     });
     if (!viewer) {
       viewerEl = document.createElement('div');

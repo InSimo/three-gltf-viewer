@@ -70,20 +70,27 @@ header {
   -webkit-app-region: drag;
 }
 
-.menu-checkbox {
+header ~ header {
+  height: 3rem;
+  background: #454545;
+}
+
+.menu-checkbox,
+.panel-checkbox {
   display: none;
 }
 
-.menu {
+.menu,
+.panel {
   display: none;
 }
 
-.menu-checkbox:checked + .menu {
+.menu-checkbox:checked + .menu,
+.panel-checkbox:checked + .panel {
   display: flex;
 }
 
-
-header h1,
+header .h1,
 header .item,
 header .separator {
   color: #F5F5F5;
@@ -92,8 +99,10 @@ header .separator {
   margin: 0;
 }
 
-header h1 {
+header .h1 {
+  color: #F5F5F5;
   font-size: 1.4rem;
+  cursor: pointer;
 }
 
 header .item {
@@ -106,7 +115,7 @@ header .item {
 }
 
 header .item:hover {
-  background: #444;
+  background: #fff;
 }
 
 header .item img,
@@ -130,6 +139,7 @@ header label.item {
   font-weight: 500;
   border-radius: 2px;
   cursor: pointer;
+  margin-right: 0.5em;
 }
 
 header button.item:hover,
@@ -142,8 +152,8 @@ header .separator {
   opacity: 0.2;
 }
 
-header h1 + .separator {
-  margin-left: 1em;
+header .h1 + .separator {
+  padding-left: 1em;
 }
 
 .flex-grow {
@@ -160,8 +170,107 @@ header h1 + .separator {
   height: auto;
 }
 
+.panel {
+  width: 50%;
+  height: 100%;
+  position: absolute;
+  left: 0%;
+  top: 0%;
+  min-width: 300px;
+  max-width: 500px;
+  padding: 0;
+  text-align: left;
+  flex-direction: column;
+}
+
+.panel-header {
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  height: 2rem;
+  background: rgba(255, 255, 255, 1.0);
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  box-shadow: 0px 0px 8px 2px rgba(0, 0, 0, 0.1);
+}
+
+.panel-header .item {
+  padding: 0 0 0 0.5em;
+  font-size: 0.8rem;
+  text-decoration: none;
+  transition: background ease 0.2s;
+
+  -webkit-app-region: no-drag;
+}
+
+.panel-header .item:hover {
+  background: #fff;
+}
+
+.panel-header .item img,
+.panel-header .item svg {
+  height: 28px;
+  margin-bottom: -9px;
+}
+
+.panel-header .item .icon {
+  font-size: 1.2rem;
+}
+
+.panel-header button.item,
+.panel-header label.item {
+  height: 34px;
+  line-height: 35px;
+  padding: 0 2px;
+  border: 0;
+  background: #ffc107;
+  color: #333;
+  font-weight: 500;
+  cursor: pointer;
+  margin-left: 0.5em;
+}
+
+.panel-header button.item:hover,
+.panel-header label.item:hover {
+  color: #000;
+}
+
+#panel-content {
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  min-height: 20%;
+  margin: 0;
+  padding: .5em 0;
+  border-width: 0 0 0 .5em;
+  border-style: solid;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.status-wip {
+  border-color: rgba(255, 255, 255, 1.0);
+}
+
+.status-ok {
+  border-color: rgba(200, 255, 200, 1.0);
+}
+
+.status-error {
+  border-color: rgba(255, 200, 200, 1.0);
+}
+
+#panel-content-wrapper {
+  z-index: 1;
+  width: 100%;
+  max-height: 100%;
+  margin: 0;
+  overflow-y: auto;
+}
+
 @media screen and (max-width: 700px) {
-  header h1 {
+  header .h1 {
     font-size: 1em;
   }
 
@@ -255,4 +364,54 @@ header h1 + .separator {
     transform: scale(1.0);
     opacity: 0;
   }
+}
+
+/******************************************************************************
+ * Render JSON
+ *
+ * https://github.com/caldwell/renderjson
+ */
+
+.renderjson {
+/*  font-family: 'Raleway', sans-serif;*/
+}
+
+.disclosure {
+  font-size: 1.2rem;
+  text-decoration: none;
+}
+
+.syntax {
+  color: #666;
+}
+
+.string {
+  color: #2cbb2c;
+  font-weight: bold;
+}
+
+.number {
+  color: #d66;
+  font-weight: bold;
+}
+
+.boolean {
+  color: #66d;
+  font-weight: bold;
+}
+
+.key {
+  color: #c92c2c;
+}
+
+.keyword {
+  color: #d4d;
+}
+
+.object.syntax {
+  color: #888;
+}
+
+.array.syntax {
+  color: #888;
 }

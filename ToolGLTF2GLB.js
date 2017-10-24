@@ -182,7 +182,7 @@ module.exports = class ToolGLTF2GLB {
     console.log(outputBinary);
 
     window.contentBinary = outputBinary;
-    window.contentFiles = {};
+    window.contentFiles = new Map();
     window.contentGLTF = json;
 
   }

@@ -19,6 +19,11 @@ var ToolsAvailable = [
   new ToolGLTF2GLB()
 ];
 
+function humanFileSize(size) {
+  var i = ( size <= 0 ) ? 0 : Math.min( 4, Math.floor( Math.log(size) / Math.log(1000) ) );
+  return ( size / Math.pow(1000, i) ).toFixed(2) * 1 + ' ' + ['B', 'KB', 'MB', 'GB', 'TB'][i];
+};
+
 document.addEventListener('DOMContentLoaded', () => {
 
   const hash = location.hash ? queryString.parse(location.hash) : {};
@@ -59,7 +64,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (window.contentBinary) {
       downloadBtnEl.style.display = (!params.hasOwnProperty('canSave') || params.canSave) ? null : 'none';
-      shareBtnEl.style.display = IS_UPLOAD_SUPPORTED && (!params.hasOwnProperty('canShare') || params.canShare) ? null : 'none';
+      if (IS_UPLOAD_SUPPORTED && (!params.hasOwnProperty('canShare') || params.canShare)) {
+        shareBtnEl.style.display = null;
+        var text = '';
+        if (window.contentBinary.size > 0) {
+          text = '(' + humanFileSize(window.contentBinary.size) + ')';
+        }
+        shareBtnEl.lastElementChild.innerHTML = text;
+      }
+      else {
+        shareBtnEl.style.display = 'none';
+      }
     }
     else {
       downloadBtnEl.style.display = 'none';

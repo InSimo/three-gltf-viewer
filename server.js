@@ -39,10 +39,20 @@ function sendIndex(req, res, json = {}) {
   var shareUrl = req.protocol + '://' + host + req.originalUrl;
   var baseUrl = req.protocol + '://' + host + '/';
   var filePath = path.join(__dirname,'index.html');
+  if (json.glb) {
+    json.model = 'v' + json.glb + '/model.glb';
+    if (json.image) {
+      json.image = 'v' + json.glb + '/' + json.image + '.png';
+    }
+    var jsonString = JSON.stringify(json);
+    json.json = jsonString;
+  }
   json.url = shareUrl;
   json.baseUrl = baseUrl;
   json.site = host;
-  json.canUpload = true;
+  if (json.canUpload === undefined) {
+    json.canUpload = true;
+  }
   //res.sendFile(filePath);
   fs.readFile(filePath, function (err, content) {
     if (err) throw err;

@@ -38,17 +38,10 @@ function humanFileSize(size) {
 document.addEventListener('DOMContentLoaded', () => {
 
   const hash = location.hash ? queryString.parse(location.hash) : {};
+  if (window.loadIndex && window.loadIndex.model) {
+    hash.model = window.loadIndex.model;
+  }
   if (!hash.model && location.search) hash.model = location.search.substr(1);
-  if (!hash.model && location.pathname.substring(0,2) == '/v' ) {
-    hash.model = location.pathname.substring(0,40) + '/model.glb';
-    console.log(hash.model);
-  }
-  if (!hash.json && location.pathname.substring(40,41) == '.' ) {
-    hash.json = location.pathname.substring(0,40) + '/' + location.pathname.substring(41) + '.json';
-    console.log(hash.json);
-  }
-
-  console.log('GO',hash.json);
 
   let viewer;
   let viewerEl;
@@ -219,6 +212,8 @@ document.addEventListener('DOMContentLoaded', () => {
   dropCtrl.on('dropstart', () => (spinnerEl.style.display = ''));
   dropCtrl.on('droperror', () => (spinnerEl.style.display = 'none'));
 
+  const previewEl = document.querySelector('.preview');
+
   function view (containerFile, rootFile, rootPath, fileMap, params = {}) {
     console.log(containerFile);
     console.log(rootFile);
@@ -266,6 +261,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const postLoad = () => {
       document.title = rootName == '' ? 'glTF Viewer' : rootName + ' - glTF';
       updateButtons(params);
+      if (previewEl) // hide preview
+        previewEl.style.display = 'none';
     };
 
     const cleanup = () => {
@@ -295,20 +292,8 @@ document.addEventListener('DOMContentLoaded', () => {
       headerEl.style.display = 'none';
     }
   }
-  if (hash.json) {
-    fetch(hash.json)
-    .then(res=>{
-      if (res.ok) {
-        return res.json();
-      } else {
-        console.log('Fetch json',hash.json,' failed');
-        return new Promise.resolve({});
-      }
-    }).then(data=>{
-      view(hash.model, hash.model, '', new Map(), data);
-    });
-  } else if (hash.model) {
-    view(hash.model, hash.model, '', new Map());
+  if (hash.model) {
+    view(hash.model, hash.model, '', new Map(), window.loadIndex || {});
   }
 
 });

@@ -11,12 +11,12 @@
   <!-- -{{#name}}-><meta property="og:title" content="{{name}} - glTF" /><!-{{/name}}- -->
   <!-- -{{#glb}}-><meta property="og:description" content="glTF 3D Object{{#site}}, shared on {{site}}{{/site}}" /><!-{{/glb}}- -->
   <!-- -{{#url}}-><meta property="og:url" content="{{{url}}}" /><!-{{/url}}- -->
-  <!-- -{{#image}}-><meta property="og:image" content="{{{baseUrl}}}v{{glb}}/{{image}}.png" /><!-{{/image}}- -->
+  <!-- -{{#image}}-><meta property="og:image" content="{{{baseUrl}}}{{image}}" /><!-{{/image}}- -->
   <!-- -{{#site}}-><meta property="og:site_name" content="{{site}}" /><!-{{/site}}- -->
   <!-- Twitter tags -->
   <meta name="twitter:card" content="summary_large_image">
   <!-- -{{#name}}-><meta name="twitter:title" content="{{name}} - glTF" /><!-{{/name}}- -->
-  <!-- -{{#image}}-><meta name="twitter:image" content="{{{baseUrl}}}v{{glb}}/{{image}}.png" /><!-{{/image}}- -->
+  <!-- -{{#image}}-><meta name="twitter:image" content="{{{baseUrl}}}{{image}}" /><!-{{/image}}- -->
   <!-- -{{#glb}}-><meta name="twitter:description" content="glTF 3D Object{{#site}}, shared on {{site}}{{/site}}" /><!-{{/glb}}- -->
   <!-- end tags -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -27,9 +27,12 @@
 // {{^canUpload}}
     IS_UPLOAD_SUPPORTED = false;
 // {{/canUpload}}
+// {{#json}}
+    var loadIndex = {{{json}}};
+// {{/json}}
   </script>
   <script src="lib/dat.gui.min.js"></script>
-  <script src="bundle.js?v=5fb2e0"></script>
+  <script src="bundle.js"></script>
 </head>
 <body>
   <header>
@@ -86,6 +89,7 @@
   </header>
   <main class="wrap">
     <div class="dropzone">
+      <!-- -{{#image}}-><img class="preview" src="{{image}}" /><!-{{/image}}- -->
       <input class="panel-checkbox" type="checkbox" id="panel-input">
       <div class="panel">
         <div class="panel-header">

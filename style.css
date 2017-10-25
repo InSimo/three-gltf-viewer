@@ -54,6 +54,15 @@ body {
   top: 0;
 }
 
+.preview {
+  width: auto;
+  height: 100%;
+  flex-grow: 1;
+  flex-shrink: 1;
+  position: absolute;
+  top: 0;
+}
+
 header {
   display: flex;
   background: #353535;

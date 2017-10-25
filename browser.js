@@ -5,8 +5,6 @@ const queryString = require('query-string');
 const JSZip = require('jszip');
 const FileSaver = require('file-saver');
 const renderjson = require('renderjson');
-const ToolGLTF2GLB = require('./ToolGLTF2GLB');
-const ToolGLTFValidator = require('./ToolGLTFValidator');
 
 if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('The File APIs are not fully supported in this browser.');
@@ -14,10 +12,23 @@ if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('WebGL is not supported in this browser.');
 }
 
-var ToolsAvailable = [
-  new ToolGLTFValidator(),
-  new ToolGLTF2GLB()
-];
+var ToolsAvailable = [];
+try {
+  const ToolGLTF2GLB = require('./ToolGLTF2GLB');
+  ToolsAvailable.push(new ToolGLTF2GLB());
+}
+catch(e) {
+  console.error('ToolGLTF2GLB failed to load');
+  console.error(e);
+}
+try {
+  const ToolGLTFValidator = require('./ToolGLTFValidator');
+  ToolsAvailable.push(new ToolGLTFValidator());
+}
+catch(e) {
+  console.error('ToolGLTFValidator failed to load');
+  console.error(e);
+}
 
 function humanFileSize(size) {
   var i = ( size <= 0 ) ? 0 : Math.min( 4, Math.floor( Math.log(size) / Math.log(1000) ) );
@@ -36,6 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
     hash.json = location.pathname.substring(0,40) + '/' + location.pathname.substring(41) + '.json';
     console.log(hash.json);
   }
+
+  console.log('GO',hash.json);
 
   let viewer;
   let viewerEl;

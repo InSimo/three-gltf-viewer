@@ -280,6 +280,8 @@ module.exports = class Viewer {
     gltfContent.setFiles(this.contentFiles);
     gltfContent.setInfo(this.sceneInformation);
 
+    window.gltfContent = gltfContent;
+
     console.info('[glTF Viewer] THREE.Scene exported as `window.content`, GLTF as `gltfContent.gltf`, metadata as `gltfContent.info`.');
     if (gltfContent.binary) {
       console.log('binary blob version as `gltfContent.binary`');

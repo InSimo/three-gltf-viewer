@@ -44,7 +44,7 @@ module.exports = class ToolGLTF2GLB {
         var file = files.get(uri);
         console.log('Buffer ',i,': refers to file ',file);
         var chunkIndex = outputChunks.length;
-        var chunk = { size: file.size, data: file };
+        var chunk = { size: file.byteLength, data: file };
         outputChunks.push(chunk);
         inputBufferStartInOutputBuffer[i] = outputBufferSize;
         outputBufferSize += chunk.size;
@@ -65,7 +65,7 @@ module.exports = class ToolGLTF2GLB {
           var file = files.get(uri);
           console.log('Image ',i,': refers to file ',file);
           var chunkIndex = outputChunks.length;
-          var chunk = { size: file.size, data: file };
+          var chunk = { size: file.byteLength, data: file };
           outputChunks.push(chunk);
           inputImageStartInOutputBuffer[i] = outputBufferSize;
           outputBufferSize += chunk.size;
@@ -101,7 +101,7 @@ module.exports = class ToolGLTF2GLB {
           delete image.uri;
           // we need to create a bufferView for this image
           var bufferViewIndex = bufferViews.length;
-          var bufferView = { buffer: 0, byteOffset: inputImageStartInOutputBuffer[i], byteLength: file.size };
+          var bufferView = { buffer: 0, byteOffset: inputImageStartInOutputBuffer[i], byteLength: file.byteLength };
           var mimeType = mime.lookup(uri);
           if (mimeType) {
             image.mimeType = mimeType;

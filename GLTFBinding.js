@@ -44,7 +44,6 @@ module.exports = class GLTFBinding {
 
   setArrayBufferFromFiles(files) {
     files.forEach(function(file, key){
-      if(key.substr(key.length - 5) != '.gltf') {
         var fileReader = new FileReader();
         new Promise(function(resolve, reject) {
           fileReader.onload = resolve;
@@ -52,9 +51,8 @@ module.exports = class GLTFBinding {
           fileReader.readAsArrayBuffer(file);
         })
         .then(  buffer =>  {
-          this.gltfBody = buffer.target.result;
+          this.files.set(key,buffer.target.result);
         });
-      }
     },this);
   }
 
@@ -111,8 +109,8 @@ module.exports = class GLTFBinding {
     var componentTypeArray = this.getComponentTypeArray(accessor.componentType);
     var typeCount = this.getTypeCount(accessor.type);
     var elementSize = componentTypeArray.BYTES_PER_ELEMENT*typeCount;
-    // var bufferArray = this.getBufferArray(bufferView.buffer);
-    var bufferArray = this.gltfBody;
+    var bufferArray = this.getBufferArray(bufferView.buffer);
+    // var bufferArray = this.gltfBody;
     console.log(bufferArray);
     if (bufferView.hasOwnProperty('byteStride')) {
       stride = bufferView.byteStride;

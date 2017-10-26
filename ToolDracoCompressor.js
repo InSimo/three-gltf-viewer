@@ -59,11 +59,19 @@ module.exports = class ToolDracoCompressor {
     encoderModule.destroy(encoder);
     encoderModule.destroy(meshBuilder);
 
+    console.log(encodedData);
     console.log(encodedLen);
     if (encodedLen==0)
       console.log('ERROR encoded lenght is 0');
-      
-    const compressedBufferId = gltfContent.addBuffer("mesh0.bin",encodedData, encodedLen);
+    
+    var encodedDataSize = encodedData.size();
+    var encodedArrayBuffer = new ArrayBuffer(encodedDataSize);
+    var encodedIntArray = new Int8Array(encodedArrayBuffer);
+    for (var i = 0; i < encodedDataSize; ++i){
+      encodedIntArray[i] = encodedData.GetValue(i);
+    }
+
+    const compressedBufferId = gltfContent.addBuffer("mesh0.bin",encodedArrayBuffer, encodedLen);
     const compressedBufferViewId = gltfContent.addBufferView(compressedBufferId,0, encodedLen);
 
     gltfContent.gltf["extensionsRequired"] = ["KHR_draco_mesh_compression"];

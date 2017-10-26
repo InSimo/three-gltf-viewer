@@ -7,12 +7,12 @@ module.exports = class ToolGLTF2GLB {
     this.icon = '▶';
   }
 
-  run () {
+  run ( gltfContent ) {
 
     // input files Map
-    const files = window.contentFiles;
+    const files = gltfContent.files;
     // input json, modified in-place so we clone it first
-    var json = JSON.parse(JSON.stringify(window.contentGLTF));
+    var json = JSON.parse(JSON.stringify(gltfContent.gltf));
     var buffers = json.buffers = json.buffers || [];
     var bufferViews = json.bufferViews = json.bufferViews || [];
     var images = json.images || [];
@@ -181,9 +181,9 @@ module.exports = class ToolGLTF2GLB {
 
     console.log(outputBinary);
 
-    window.contentBinary = outputBinary;
-    window.contentFiles = new Map();
-    window.contentGLTF = json;
+    gltfContent.binary = outputBinary;
+    gltfContent.files = new Map();
+    gltfContent.gltf = json;
 
   }
 }

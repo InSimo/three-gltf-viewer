@@ -151,7 +151,7 @@ module.exports = class Viewer {
 
   }
 
-  load ( rootName, containerFile, url, rootPath, assetMap, initState = {} ) {
+  load ( gltfContent, rootName, containerFile, url, rootPath, assetMap, initState = {} ) {
 
     return new Promise((resolve, reject) => {
 
@@ -191,7 +191,7 @@ module.exports = class Viewer {
         const clips = gltf.animations || [];
         const contentBinary = gltf.binaryBlob;
         this.setSceneInformation(rootName, containerFile, url, rootPath, assetMap, gltf, loader, loadedURLs);
-        this.setContent(scene, clips, gltf.json, contentBinary, assetMap, initState);
+        this.setContent(gltfContent, scene, clips, gltf.json, contentBinary, assetMap, initState);
 
         blobURLs.forEach(URL.revokeObjectURL);
 
@@ -208,7 +208,7 @@ module.exports = class Viewer {
    * @param {Array<THREE.AnimationClip} clips
    * @param {Blob} contentBinary
    */
-  setContent ( object, clips, contentGLTF, contentBinary, assetMap, initState = {} ) {
+  setContent (gltfContent, object, clips, contentGLTF, contentBinary, assetMap, initState = {} ) {
 
     this.clear();
 
@@ -274,16 +274,18 @@ module.exports = class Viewer {
     this.updateGUISceneInformation();
 
     window.content = this.content;
-    window.contentGLTF = this.contentGLTF;
-    window.contentBinary = this.contentBinary;
-    window.contentFiles = this.contentFiles;
-    window.contentInfo = this.sceneInformation;
-    console.info('[glTF Viewer] THREE.Scene exported as `window.content`, GLTF as `window.contentGLTF`, metadata as `window.contentInfo`.');
-    if (this.contentBinary) {
-      console.log('binary blob version as `window.contentBinary`');
+
+    gltfContent.setGLTF(this.contentGLTF);
+    gltfContent.setBinary(this.contentBinary);
+    gltfContent.setFiles(this.contentFiles);
+    gltfContent.setInfo(this.sceneInformation);
+
+    console.info('[glTF Viewer] THREE.Scene exported as `window.content`, GLTF as `gltfContent.gltf`, metadata as `gltfContent.info`.');
+    if (gltfContent.binary) {
+      console.log('binary blob version as `gltfContent.binary`');
     }
-    if (this.contentFiles) {
-      console.log('binary files version as `window.contentFiles`');
+    if (gltfContent.files) {
+      console.log('binary files version as `gltfContent.files`');
     }
     this.printGraph(this.content);
     console.log(this.sceneInformation);

@@ -5,8 +5,10 @@ const queryString = require('query-string');
 const JSZip = require('jszip');
 const FileSaver = require('file-saver');
 const renderjson = require('renderjson');
-const ToolGLTF2GLB = require('./ToolGLTF2GLB');
+const GLTFBindig = require('./GLTFBinding');
 const ToolGLTFValidator = require('./ToolGLTFValidator');
+const ToolGLTF2GLB = require('./ToolGLTF2GLB');
+const ToolDracoCompressor = require('./ToolDracoCompressor');
 
 if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('The File APIs are not fully supported in this browser.');
@@ -16,7 +18,8 @@ if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
 
 var ToolsAvailable = [
   new ToolGLTFValidator(),
-  new ToolGLTF2GLB()
+  new ToolGLTF2GLB(),
+  new ToolDracoCompressor()
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -34,9 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let viewer;
   let viewerEl;
-
   let rootName = '';
 
+  let gltfContent = new GLTFBindig();
+  
   // make sure only one menu is visible at any given time
   // we can't use radio buttons because we do need to be able to have none
   // and we want the main menu buttons to behave like a toggle
@@ -57,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.content) {
       closeBtnEl.style.display = null;
     }
-    if (window.contentBinary) {
+    if (gltfContent.binary) {
       downloadBtnEl.style.display = (!params.hasOwnProperty('canSave') || params.canSave) ? null : 'none';
       shareBtnEl.style.display = (!params.hasOwnProperty('canShare') || params.canShare) ? null : 'none';
     }
@@ -72,8 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const downloadBtnEl = document.querySelector('#download-btn');
   downloadBtnEl.addEventListener('click', function () {
-    if (window.contentBinary) {
-      FileSaver.saveAs(window.contentBinary, (rootName||'output')+'.glb');
+    if (gltfContent.binary) {
+      FileSaver.saveAs(gltfContent.binary, (rootName||'output')+'.glb');
     }
   });
   const closeBtnEl = document.querySelector('#close-btn');
@@ -97,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
   shareBtnEl.addEventListener('click', function () {
   viewer.renderImage(512,512,function(imageBlob) {
     var formData = new FormData();
-    var glbBlob = window.contentBinary;
+    var glbBlob = gltfContent.binary;
     var viewState = viewer.getState();
     //viewState.name = rootName;
     var viewBlob = new Blob([JSON.stringify(viewState)], {type: 'application/json'});
@@ -140,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
       panelContentEl.classList.remove('status-wip','status-ok','status-error');
       panelContentEl.classList.add('status-wip');
       try {
-        var p = tool.run();
+        var p = tool.run( gltfContent );
         if (p) {
           panelCheckBox.checked = true;
           p.then(function(res) {
@@ -248,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     spinnerEl.style.display = '';
-    viewer.load(rootName, containerFile || rootFile, fileURL, rootPath, fileMap, params.view || {})
+    viewer.load(gltfContent, rootName, containerFile || rootFile, fileURL, rootPath, fileMap, params.view || {})
       .then(postLoad)
       .then(cleanup)
       .catch((error) => {

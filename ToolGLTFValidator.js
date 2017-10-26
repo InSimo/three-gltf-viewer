@@ -9,10 +9,10 @@ module.exports = class ToolGLTFValidator {
     this.title = 'glTF Validator';
   }
 
-  run () {
+  run (gltfContent) {
     return new Promise( function(resolve, reject) {
-      const blob = window.contentBinary;
-      const json = window.contentGLTF;
+      const blob = gltfContent.binary;
+      const json = gltfContent.gltf;
       if (blob) {
         //var array = new Uint8Array(blob);
         var reader = new FileReader();
@@ -20,14 +20,14 @@ module.exports = class ToolGLTFValidator {
         reader.onload = function() {
           var arrayBuffer = reader.result
           var bytes = new Uint8Array(arrayBuffer);
-          validator.validateBytes(window.contentInfo.name,bytes)
+          validator.validateBytes(gltfContent.info.name,bytes)
             .then(resolve)
             .catch(reject);
         }
       }
       else if (json) {
         var string = JSON.stringify(json);
-        validator.validateString(window.contentInfo.name,string)
+        validator.validateString(gltfContent.info.name,string)
           .then(resolve)
           .catch(reject);
       }

@@ -111,18 +111,18 @@ module.exports = class GLTFBinding {
     var elementSize = componentTypeArray.BYTES_PER_ELEMENT*typeCount;
     var bufferArray = this.getBufferArray(bufferView.buffer);
     // var bufferArray = this.gltfBody;
-    console.log(bufferArray);
+    // console.log(bufferArray);
     if (bufferView.hasOwnProperty('byteStride')) {
       stride = bufferView.byteStride;
     }
 
+    var offset = (accessor.byteOffset || 0) + (bufferView.byteOffset || 0);
     if (stride == 0 || stride == elementSize) {
-
-      buffer = new componentTypeArray(bufferArray.slice(accessor.byteOffset + bufferView.byteOffset, accessor.byteOffset + bufferView.byteOffset + elementSize*accessor.count));
+      buffer = new componentTypeArray(bufferArray.slice(offset, offset + elementSize*accessor.count));
 
     } else {
 
-      var inbuffer = new componentTypeArray(bufferArray.slice(accessor.byteOffset + bufferView.byteOffset, accessor.byteOffset + bufferView.byteOffset + bufferView.byteLength));
+      var inbuffer = new componentTypeArray(bufferArray.slice(offset, offset + bufferView.byteLength));
       buffer = new componentTypeArray(accessor.count*typeCount);
 
       for(var i = 0; i<accessor.count; i++) {
@@ -135,7 +135,7 @@ module.exports = class GLTFBinding {
         }
       }
     }
-    console.log(buffer);
+    // console.log(buffer);
     return buffer;
   }
 

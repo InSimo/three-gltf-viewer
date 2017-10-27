@@ -88,6 +88,8 @@ module.exports = class Viewer {
 
     this.animate = this.animate.bind(this);
     requestAnimationFrame( this.animate );
+    this.lastClientWidth = el.clientWidth;
+    this.lastClientHeight = el.clientHeight;
     window.addEventListener('resize', this.resize.bind(this), false);
   }
 
@@ -131,6 +133,7 @@ module.exports = class Viewer {
       // reset renderer settings
       this.renderer.setPixelRatio( window.devicePixelRatio );
       // reset size and background
+      this.lastClientWidth = -1;
       this.resize();
       this.updateEnvironment();
       this.render();
@@ -141,12 +144,14 @@ module.exports = class Viewer {
   resize () {
 
     const {clientHeight, clientWidth} = this.el.parentElement;
-
-    this.defaultCamera.aspect = clientWidth / clientHeight;
-    this.defaultCamera.updateProjectionMatrix();
-    this.background.style({aspect: this.defaultCamera.aspect});
-    this.renderer.setSize(clientWidth, clientHeight);
-
+    if (clientHeight != this.lastClientHeight || clientWidth != this.lastClientWidth) {
+      this.lastClientWidth = clientWidth;
+      this.lastClientHeight = clientHeight;
+      this.defaultCamera.aspect = clientWidth / clientHeight;
+      this.defaultCamera.updateProjectionMatrix();
+      this.background.style({aspect: this.defaultCamera.aspect});
+      this.renderer.setSize(clientWidth, clientHeight);
+    }
   }
 
   load ( rootName, containerFile, url, rootPath, assetMap, initState = {} ) {

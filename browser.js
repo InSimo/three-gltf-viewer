@@ -48,21 +48,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let rootName = '';
 
+  function scheduleResize() {
+    if (viewer) {
+      setTimeout(viewer.resize.bind(viewer), 0);
+    }
+  }
+
   // make sure only one menu is visible at any given time
   // we can't use radio buttons because we do need to be able to have none
   // and we want the main menu buttons to behave like a toggle
   let menuCheckBoxes = document.querySelectorAll('.menu-checkbox');
+  let menuLabels = document.querySelectorAll('.menu-label');
   for (let cb of menuCheckBoxes) {
     cb.addEventListener( 'change', function() {
-    if(this.checked) {
-      for (let cb2 of menuCheckBoxes) {
-        if (cb2 !== this && cb2.checked) {
-          cb2.checked = false;
+      if(this.checked) {
+        for (let cb2 of menuCheckBoxes) {
+          if (cb2 !== this && cb2.checked) {
+            cb2.checked = false;
+          }
         }
       }
-    }
+      for (let lb of menuLabels) {
+        if (lb.htmlFor == this.id) {
+          if (this.checked) {
+            lb.classList.add('checked');
+          }
+          else {
+            lb.classList.remove('checked');
+          }
+        }
+        else if (this.checked && lb.classList.contains('checked')) {
+          lb.classList.remove('checked');
+        }
+      }
+      scheduleResize();
     });
   }
+  let kioskCheckBox = document.querySelector('.kiosk-checkbox');
+  kioskCheckBox.addEventListener( 'change', scheduleResize );
 
   const updateButtons = ( params = {} ) => {
     if (window.content) {

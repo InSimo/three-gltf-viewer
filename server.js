@@ -36,7 +36,8 @@ var upload = multer({ dest: uploadDir+path.sep });
 
 function sendIndex(req, res, json = {}) {
   var host = req.get('host');
-  var shareUrl = req.protocol + '://' + host + req.originalUrl;
+  var fullUrl = req.protocol + '://' + host + req.originalUrl;
+  var shareUrl = req.protocol + '://' + host + req.path;
   var baseUrl = req.protocol + '://' + host + '/';
   var filePath = path.join(__dirname,'index.html');
   if (json.glb) {
@@ -47,12 +48,22 @@ function sendIndex(req, res, json = {}) {
     var jsonString = JSON.stringify(json);
     json.json = jsonString;
   }
+  json.options = [];
+  json.option_map = {};
+  json.has_option = {};
+  for (var [key,value] of Object.entries(req.query)) {
+    json.options.push({key: key, value: value});
+    json.option_map[key] = value;
+    json.has_option[key] = true;
+  }
   json.url = shareUrl;
+  json.fullUrl = fullUrl;
   json.baseUrl = baseUrl;
   json.site = host;
   if (json.canUpload === undefined) {
     json.canUpload = true;
   }
+  console.log(json);
   //res.sendFile(filePath);
   fs.readFile(filePath, function (err, content) {
     if (err) throw err;
@@ -180,24 +191,24 @@ app.post('/upload', upload.fields([{name:'glb', maxCount: 1},{name:'image', maxC
 });
 
 var reHashB64 = /^[a-zA-Z0-9_-]{38}$/;
+var reOption = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 
-app.get('/v:hashb64', function(req, res) {
-    hashb64 = req.params.hashb64.substring(0,38);
-    hindexb64 = undefined;
-    if (req.params.hashb64.length == 2*38+1 && req.params.hashb64[38] == '.') {
-        hindexb64 = req.params.hashb64.substring(39);
-    }
-    if (!reHashB64.test(hashb64) || (hindexb64 !== undefined && !reHashB64.test(hindexb64))) {
-        res.status(404).send('Not found');
-        return;
-    }
-    var hash = new Buffer(base64normal(hashb64),"base64").toString('hex');
-    console.log('Hash:', hash);
-    var dir = path.join(__dirname,'data',hash.substring(0,2),hash.substring(2,4),hash.substring(4));
-    if (!fs.existsSync(dir)) {
-        res.status(404).send('Not found');
-        return;
-    }
+app.get('/v(:hashb64)(.:hindexb64)?', function(req, res) {
+  console.log('QUERY:',req.query);
+  hashb64 = req.params.hashb64;
+  hindexb64 = req.params.hindexb64;
+  if (!reHashB64.test(hashb64) ||
+      (hindexb64 !== undefined && !reHashB64.test(hindexb64))) {
+    res.status(404).send('Not found');
+    return;
+  }
+  var hash = new Buffer(base64normal(hashb64),"base64").toString('hex');
+  console.log('Hash:', hash);
+  var dir = path.join(__dirname,'data',hash.substring(0,2),hash.substring(2,4),hash.substring(4));
+  if (!fs.existsSync(dir)) {
+    res.status(404).send('Not found');
+    return;
+  }
   //res.sendFile(path.join(__dirname,'index.html'));
   if (hindexb64 === undefined) {
     json = { glb: hashb64 };
@@ -279,7 +290,7 @@ app.get('/v:hashb64/:himageb64.png', function(req, res) {
     res.sendFile(file);
 });
 
-app.use(express.static(__dirname));
+app.use(express.static(__dirname, {dotfiles: "deny"}));
 
 app.use(function (err, req, res, next) {
     console.error(err.stack);

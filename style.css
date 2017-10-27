@@ -63,14 +63,14 @@ body {
   top: 0;
 }
 
-header {
+.header {
   display: flex;
   background: #353535;
   padding: 0 2em;
   height: 4rem;
 /*  line-height: 4rem;*/
   align-items: center;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
   white-space: nowrap;
   box-shadow: 0px 0px 8px 2px rgba(0, 0, 0, 0.3);
@@ -79,28 +79,34 @@ header {
   -webkit-app-region: drag;
 }
 
-header ~ header {
+.menu {
   height: 3rem;
   background: #454545;
 }
 
-header .h1,
-header .item,
-header .separator {
+.header .h1,
+.header .item,
+.header .separator {
   color: #F5F5F5;
   font-weight: 300;
 /*  line-height: 4rem;*/
   margin: 0;
 }
 
-header .h1 {
+.header .h1 {
   color: #F5F5F5;
   font-size: 1.4rem;
   cursor: pointer;
+  background-color: transparent;
+  border: 0;
+  padding: 0;
 }
 
-header .item {
-  padding: 0 1em;
+.header .h1 img {
+  border-image: 0;
+}
+.header .item {
+  padding: 0 0.8em;
   font-size: 0.8rem;
   text-decoration: none;
   color: #F5F5F5;
@@ -109,33 +115,36 @@ header .item {
   -webkit-app-region: no-drag;
 }
 
-header .item a {
+.header .item a {
   font-size: 0.8rem;
   text-decoration: none;
   color: #F5F5F5;
  
 }
 
-header button.item:hover,
-header label.item:hover {
+.header button.item:hover,
+.header label.item:hover {
   background: #fff;
 }
 
-header .item img,
-header .item svg {
+.header .item img {
+  height: 28px;
+  margin-bottom: -7px;
+}
+
+.header .item svg {
   height: 28px;
   margin-bottom: -9px;
 }
 
-header .item .icon {
+.header .item .icon {
   font-size: 1.2rem;
 }
 
-header button.item,
-header label.item {
+.header button.item,
+.header label.item {
   height: 34px;
   line-height: 35px;
-  padding: 0 1em;
   border: 0;
   background: #ffc107;
   color: #333;
@@ -145,17 +154,29 @@ header label.item {
   margin-right: 0.5em;
 }
 
-header button.item:hover,
-header label.item:hover {
+.header label.menu-close {
+  padding: 0 4px;
+}
+
+.header button.checked,
+.header label.checked {
+  background: #ffe1a7;
+  margin-bottom: -20px;
+  height: 50px;
+}
+
+.header button.item:hover,
+.header label.item:hover {
   color: #000;
 }
 
-header .separator {
+.header .separator {
   margin: 0 0.2em;
   opacity: 0.2;
 }
 
-header .h1 + .separator {
+.header .h1 + .separator,
+.header .h1 + .item {
   padding-left: 1em;
 }
 
@@ -272,12 +293,37 @@ header .h1 + .separator {
   overflow-y: auto;
 }
 
-@media screen and (max-width: 700px) {
-  header .h1 {
+@media screen and (max-width: 543px) {
+  .hidden-xs-down {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .header {
     font-size: 1em;
+    padding: 0 0.5em;
   }
 
-  .layout-md {
+  .hidden-sm-down {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 991px) {
+  .hidden-md-down {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 1199px) {
+  .hidden-lg-down {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 1899px) {
+  .hidden-xl-down {
     display: none;
   }
 }
@@ -376,7 +422,8 @@ header .h1 + .separator {
  */
 
 .menu-checkbox,
-.panel-checkbox {
+.panel-checkbox,
+.kiosk-checkbox {
   display: none;
 }
 
@@ -388,6 +435,21 @@ header .h1 + .separator {
 .menu-checkbox:checked + .menu,
 .panel-checkbox:checked + .panel {
   display: flex;
+}
+
+.kiosk-checkbox:checked + header .menu,
+.kiosk-checkbox:checked + header .header .item,
+.kiosk-checkbox:checked + header .header .separator,
+.kiosk-checkbox:checked ~ main .gui-wrap {
+  display: none;
+}
+
+.kiosk-checkbox:checked + header,
+.kiosk-checkbox:checked + header .top-menu {
+  position: absolute;
+  background-color: transparent;
+  width: 130px;
+  box-shadow: none;
 }
 
 /******************************************************************************

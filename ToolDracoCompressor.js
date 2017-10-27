@@ -9,9 +9,11 @@ module.exports = class ToolDracoCompressor {
   }
 
   run (gltfContent) {
+    console.time( 'DracoCompressor' );
+    // console.log(gltfContent);
 
-    console.log(gltfContent);
-
+    
+    console.time( 'DracoCompressorAttribute' );
     var primitive = gltfContent.gltf.meshes[0].primitives[0];
 
     const encoderModule = DracoEncoderModule();
@@ -43,10 +45,13 @@ module.exports = class ToolDracoCompressor {
         dracoMesh, encoderType, attrArray.length, gltfContent.getTypeCount(gltfContent.gltf.accessors[value].type), attrArray);
       compressedAttributes[key] = id;
     }
+    console.timeEnd( 'DracoCompressorAttribute' );
 
+
+    console.time( 'DracoCompressorEncoder' );
     const encodedData = new encoderModule.DracoInt8Array();
     
-    var method = "edgebreaker";
+    var method = "sequential";
     if (method === "edgebreaker") {
       encoder.SetEncodingMethod(encoderModule.MESH_EDGEBREAKER_ENCODING);
     } else if (method === "sequential") {
@@ -59,18 +64,24 @@ module.exports = class ToolDracoCompressor {
     encoderModule.destroy(encoder);
     encoderModule.destroy(meshBuilder);
 
-    console.log(encodedData);
-    console.log(encodedLen);
+    console.timeEnd( 'DracoCompressorEncoder' );
+    // console.log(encodedData);
+    // console.log(encodedLen);
     if (encodedLen==0)
       console.log('ERROR encoded lenght is 0');
     
+    console.time('ArrayInt8');
     var encodedDataSize = encodedData.size();
     var encodedArrayBuffer = new ArrayBuffer(encodedDataSize);
     var encodedIntArray = new Int8Array(encodedArrayBuffer);
     for (var i = 0; i < encodedDataSize; ++i){
       encodedIntArray[i] = encodedData.GetValue(i);
     }
+    console.timeEnd('ArrayInt8');
 
+
+
+    console.time( 'DracoCompressorGLTF' );
     const compressedBufferId = gltfContent.addBuffer("mesh0.bin",encodedArrayBuffer, encodedLen);
     const compressedBufferViewId = gltfContent.addBufferView(compressedBufferId,0, encodedLen);
 
@@ -89,6 +100,9 @@ module.exports = class ToolDracoCompressor {
     }
     delete gltfContent.gltf.accessors[primitive.indices].bufferView;
 
-    console.log(gltfContent.gltf);
+    console.timeEnd( 'DracoCompressorGLTF' );
+    // console.log(gltfContent.gltf);
+
+    console.timeEnd( 'DracoCompressor' );
   }
 }

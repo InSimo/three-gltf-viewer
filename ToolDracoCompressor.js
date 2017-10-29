@@ -5,7 +5,7 @@ module.exports = class ToolDracoCompressor {
 
   constructor () {
     this.name = 'Draco Compressor';
-    this.icon = '▶';
+    this.icon = '<img src="assets/icons/draco-56.png" alt="Draco">';
   }
 
   run (gltfContent) {
@@ -105,4 +105,3 @@ module.exports = class ToolDracoCompressor {
     console.timeEnd( 'DracoCompressor' );
   }
 }
-  

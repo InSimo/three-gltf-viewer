@@ -105,8 +105,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (IS_UPLOAD_SUPPORTED && (!params.hasOwnProperty('canShare') || params.canShare)) {
         shareBtnEl.style.display = null;
         var text = '';
-        if (window.contentBinary.size > 0) {
-          text = '(' + humanFileSize(window.contentBinary.size) + ')';
+        if (window.gltfContent.binary.size > 0) {
+          text = '(' + humanFileSize(window.gltfContent.binary.size) + ')';
         }
         shareBtnEl.lastElementChild.innerHTML = text;
       }

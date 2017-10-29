@@ -6,9 +6,6 @@ const JSZip = require('jszip');
 const FileSaver = require('file-saver');
 const renderjson = require('renderjson');
 const GLTFBindig = require('./GLTFBinding');
-const ToolGLTFValidator = require('./ToolGLTFValidator');
-const ToolGLTF2GLB = require('./ToolGLTF2GLB');
-const ToolDracoCompressor = require('./ToolDracoCompressor');
 
 if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('The File APIs are not fully supported in this browser.');
@@ -16,46 +13,88 @@ if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('WebGL is not supported in this browser.');
 }
 
-var ToolsAvailable = [
-  new ToolGLTFValidator(),
-  new ToolGLTF2GLB(),
-  new ToolDracoCompressor()
-];
+var ToolsAvailable = [];
+try {
+  const ToolGLTF2GLB = require('./ToolGLTF2GLB');
+  ToolsAvailable.push(new ToolGLTF2GLB());
+}
+catch(e) {
+  console.error('ToolGLTF2GLB failed to load');
+  console.error(e);
+}
+try {
+  const ToolGLTFValidator = require('./ToolGLTFValidator');
+  ToolsAvailable.push(new ToolGLTFValidator());
+}
+catch(e) {
+  console.error('ToolGLTFValidator failed to load');
+  console.error(e);
+}
+try {
+  const ToolDracoCompressor = require('./ToolDracoCompressor');
+  ToolsAvailable.push(new ToolDracoCompressor());
+}
+catch(e) {
+  console.error('ToolDracoCompressor failed to load');
+  console.error(e);
+}
+
+function humanFileSize(size) {
+  var i = ( size <= 0 ) ? 0 : Math.min( 4, Math.floor( Math.log(size) / Math.log(1000) ) );
+  return ( size / Math.pow(1000, i) ).toFixed(2) * 1 + ' ' + ['B', 'KB', 'MB', 'GB', 'TB'][i];
+};
 
 document.addEventListener('DOMContentLoaded', () => {
 
   const hash = location.hash ? queryString.parse(location.hash) : {};
+  if (window.loadIndex && window.loadIndex.model) {
+    hash.model = window.loadIndex.model;
+  }
   if (!hash.model && location.search) hash.model = location.search.substr(1);
-  if (!hash.model && location.pathname.substring(0,2) == '/v' ) {
-    hash.model = location.pathname.substring(0,40) + '/model.glb';
-    console.log(hash.model);
-  }
-  if (!hash.json && location.pathname.substring(40,41) == '.' ) {
-    hash.json = location.pathname.substring(0,40) + '/' + location.pathname.substring(41) + '.json';
-    console.log(hash.json);
-  }
 
   let viewer;
   let viewerEl;
   let rootName = '';
-
   let gltfContent = new GLTFBindig();
-  
+
+  function scheduleResize() {
+    if (viewer) {
+      setTimeout(viewer.resize.bind(viewer), 0);
+    }
+  }
+
   // make sure only one menu is visible at any given time
   // we can't use radio buttons because we do need to be able to have none
   // and we want the main menu buttons to behave like a toggle
   let menuCheckBoxes = document.querySelectorAll('.menu-checkbox');
+  let menuLabels = document.querySelectorAll('.menu-label');
   for (let cb of menuCheckBoxes) {
     cb.addEventListener( 'change', function() {
-    if(this.checked) {
-      for (let cb2 of menuCheckBoxes) {
-        if (cb2 !== this && cb2.checked) {
-          cb2.checked = false;
+      if(this.checked) {
+        for (let cb2 of menuCheckBoxes) {
+          if (cb2 !== this && cb2.checked) {
+            cb2.checked = false;
+          }
         }
       }
-    }
+      for (let lb of menuLabels) {
+        if (lb.htmlFor == this.id) {
+          if (this.checked) {
+            lb.classList.add('checked');
+          }
+          else {
+            lb.classList.remove('checked');
+          }
+        }
+        else if (this.checked && lb.classList.contains('checked')) {
+          lb.classList.remove('checked');
+        }
+      }
+      scheduleResize();
     });
   }
+  let kioskCheckBox = document.querySelector('.kiosk-checkbox');
+  kioskCheckBox.addEventListener( 'change', scheduleResize );
 
   const updateButtons = ( params = {} ) => {
     if (window.content) {
@@ -63,7 +102,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (gltfContent.binary) {
       downloadBtnEl.style.display = (!params.hasOwnProperty('canSave') || params.canSave) ? null : 'none';
-      shareBtnEl.style.display = (!params.hasOwnProperty('canShare') || params.canShare) ? null : 'none';
+      if (IS_UPLOAD_SUPPORTED && (!params.hasOwnProperty('canShare') || params.canShare)) {
+        shareBtnEl.style.display = null;
+        var text = '';
+        if (window.contentBinary.size > 0) {
+          text = '(' + humanFileSize(window.contentBinary.size) + ')';
+        }
+        shareBtnEl.lastElementChild.innerHTML = text;
+      }
+      else {
+        shareBtnEl.style.display = 'none';
+      }
     }
     else {
       downloadBtnEl.style.display = 'none';
@@ -195,6 +244,8 @@ document.addEventListener('DOMContentLoaded', () => {
   dropCtrl.on('dropstart', () => (spinnerEl.style.display = ''));
   dropCtrl.on('droperror', () => (spinnerEl.style.display = 'none'));
 
+  const previewEl = document.querySelector('.preview');
+
   function view (containerFile, rootFile, rootPath, fileMap, params = {}) {
     console.log(containerFile);
     console.log(rootFile);
@@ -242,6 +293,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const postLoad = () => {
       document.title = rootName == '' ? 'glTF Viewer' : rootName + ' - glTF';
       updateButtons(params);
+      if (previewEl) // hide preview
+        previewEl.style.display = 'none';
     };
 
     const cleanup = () => {
@@ -266,23 +319,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (hash.kiosk) {
-    const headerEl = document.querySelector('header');
-    headerEl.style.display = 'none';
+    const headerEls = document.querySelectorAll('header');
+    for (let headerEl of headerEls) {
+      headerEl.style.display = 'none';
+    }
   }
-  if (hash.json) {
-    fetch(hash.json)
-    .then(res=>{
-      if (res.ok) {
-        return res.json();
-      } else {
-        console.log('Fetch json',hash.json,' failed');
-        return new Promise.resolve({});
-      }
-    }).then(data=>{
-      view(hash.model, hash.model, '', new Map(), data);
-    });
-  } else if (hash.model) {
-    view(hash.model, hash.model, '', new Map());
+  if (hash.model) {
+    view(hash.model, hash.model, '', new Map(), window.loadIndex || {});
   }
 
 });

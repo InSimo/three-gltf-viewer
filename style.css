@@ -54,14 +54,23 @@ body {
   top: 0;
 }
 
-header {
+.preview {
+  width: auto;
+  height: 100%;
+  flex-grow: 1;
+  flex-shrink: 1;
+  position: absolute;
+  top: 0;
+}
+
+.header {
   display: flex;
   background: #353535;
   padding: 0 2em;
   height: 4rem;
 /*  line-height: 4rem;*/
   align-items: center;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
   white-space: nowrap;
   box-shadow: 0px 0px 8px 2px rgba(0, 0, 0, 0.3);
@@ -70,69 +79,72 @@ header {
   -webkit-app-region: drag;
 }
 
-header ~ header {
+.menu {
   height: 3rem;
   background: #454545;
 }
 
-.menu-checkbox,
-.panel-checkbox {
-  display: none;
-}
-
-.menu,
-.panel {
-  display: none;
-}
-
-.menu-checkbox:checked + .menu,
-.panel-checkbox:checked + .panel {
-  display: flex;
-}
-
-header .h1,
-header .item,
-header .separator {
+.header .h1,
+.header .item,
+.header .separator {
   color: #F5F5F5;
   font-weight: 300;
 /*  line-height: 4rem;*/
   margin: 0;
 }
 
-header .h1 {
+.header .h1 {
   color: #F5F5F5;
   font-size: 1.4rem;
   cursor: pointer;
+  background-color: transparent;
+  border: 0;
+  padding: 0;
 }
 
-header .item {
-  padding: 0 1em;
+.header .h1 img {
+  border-image: 0;
+}
+.header .item {
+  padding: 0 0.8em;
   font-size: 0.8rem;
   text-decoration: none;
+  color: #F5F5F5;
   transition: background ease 0.2s;
 
   -webkit-app-region: no-drag;
 }
 
-header .item:hover {
+.header .item a {
+  font-size: 0.8rem;
+  text-decoration: none;
+  color: #F5F5F5;
+ 
+}
+
+.header button.item:hover,
+.header label.item:hover {
   background: #fff;
 }
 
-header .item img,
-header .item svg {
+.header .item img {
+  height: 28px;
+  margin-bottom: -7px;
+}
+
+.header .item svg {
   height: 28px;
   margin-bottom: -9px;
 }
 
-header .item .icon {
+.header .item .icon {
   font-size: 1.2rem;
 }
 
-header button.item,
-header label.item {
+.header button.item,
+.header label.item {
   height: 34px;
   line-height: 35px;
-  padding: 0 1em;
   border: 0;
   background: #ffc107;
   color: #333;
@@ -142,17 +154,29 @@ header label.item {
   margin-right: 0.5em;
 }
 
-header button.item:hover,
-header label.item:hover {
+.header label.menu-close {
+  padding: 0 4px;
+}
+
+.header button.checked,
+.header label.checked {
+  background: #ffe1a7;
+  margin-bottom: -20px;
+  height: 50px;
+}
+
+.header button.item:hover,
+.header label.item:hover {
   color: #000;
 }
 
-header .separator {
+.header .separator {
   margin: 0 0.2em;
   opacity: 0.2;
 }
 
-header .h1 + .separator {
+.header .h1 + .separator,
+.header .h1 + .item {
   padding-left: 1em;
 }
 
@@ -188,7 +212,9 @@ header .h1 + .separator {
   display: flex;
   width: 100%;
   height: 2rem;
-  background: rgba(255, 255, 255, 1.0);
+  background: rgba(0, 0, 0, 1.0);
+  color: #F5F5F5;
+  font-weight: bold;
   align-items: center;
   overflow-x: auto;
   overflow-y: hidden;
@@ -203,10 +229,6 @@ header .h1 + .separator {
   transition: background ease 0.2s;
 
   -webkit-app-region: no-drag;
-}
-
-.panel-header .item:hover {
-  background: #fff;
 }
 
 .panel-header .item img,
@@ -235,6 +257,7 @@ header .h1 + .separator {
 .panel-header button.item:hover,
 .panel-header label.item:hover {
   color: #000;
+  background: #fff;
 }
 
 #panel-content {
@@ -246,19 +269,20 @@ header .h1 + .separator {
   padding: .5em 0;
   border-width: 0 0 0 .5em;
   border-style: solid;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.85);
+  color: #F5F5F5;
 }
 
 .status-wip {
-  border-color: rgba(255, 255, 255, 1.0);
+  border-color: rgba(100, 100, 100, 1.0);
 }
 
 .status-ok {
-  border-color: rgba(200, 255, 200, 1.0);
+  border-color: rgba(0, 200, 0, 1.0);
 }
 
 .status-error {
-  border-color: rgba(255, 200, 200, 1.0);
+  border-color: rgba(200, 0, 0, 1.0);
 }
 
 #panel-content-wrapper {
@@ -269,12 +293,37 @@ header .h1 + .separator {
   overflow-y: auto;
 }
 
-@media screen and (max-width: 700px) {
-  header .h1 {
+@media screen and (max-width: 543px) {
+  .hidden-xs-down {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .header {
     font-size: 1em;
+    padding: 0 0.5em;
   }
 
-  .layout-md {
+  .hidden-sm-down {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 991px) {
+  .hidden-md-down {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 1199px) {
+  .hidden-lg-down {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 1899px) {
+  .hidden-xl-down {
     display: none;
   }
 }
@@ -367,6 +416,43 @@ header .h1 + .separator {
 }
 
 /******************************************************************************
+ * Dropdown menus
+ *
+ * https://tutorialzine.com/2015/08/quick-tip-css-only-dropdowns-with-the-checkbox-hack
+ */
+
+.menu-checkbox,
+.panel-checkbox,
+.kiosk-checkbox {
+  display: none;
+}
+
+.menu,
+.panel {
+  display: none;
+}
+
+.menu-checkbox:checked + .menu,
+.panel-checkbox:checked + .panel {
+  display: flex;
+}
+
+.kiosk-checkbox:checked + header .menu,
+.kiosk-checkbox:checked + header .header .item,
+.kiosk-checkbox:checked + header .header .separator,
+.kiosk-checkbox:checked ~ main .gui-wrap {
+  display: none;
+}
+
+.kiosk-checkbox:checked + header,
+.kiosk-checkbox:checked + header .top-menu {
+  position: absolute;
+  background-color: transparent;
+  width: 130px;
+  box-shadow: none;
+}
+
+/******************************************************************************
  * Render JSON
  *
  * https://github.com/caldwell/renderjson
@@ -377,7 +463,14 @@ header .h1 + .separator {
 }
 
 .disclosure {
+  color: #FFF;
   font-size: 1.2rem;
+  text-decoration: none;
+}
+
+.disclosure ~ a {
+  color: #FFF;
+  font-size: 1rem;
   text-decoration: none;
 }
 

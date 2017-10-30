@@ -23,7 +23,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css?family=Raleway:300,400" rel="stylesheet">
-  <script type="text/javascript">
+  <script>
 //{{=//{{ }}=}}
 //{{#canUpload}}    var IS_UPLOAD_SUPPORTED = true;//{{/canUpload}}
 //{{#json}}    var loadIndex = //{{{json}}};//{{/json}}
@@ -33,9 +33,17 @@
 //{{={{ }}=}}
   </script>
   <script src="lib/dat.gui.min.js"></script>
-  <script src="bundle.js"></script>
+  <!--
   <script src="lib/draco/draco_decoder.js"></script>
   <script src="lib/draco/draco_encoder.js"></script>
+  -->
+  <script src="bundle.common.js"></script>
+  <script src="bundle.browser.js"></script>
+  <!-- {{^has_option.embed}} -->
+  <script src="bundle.ToolGLTF2GLB.js" async></script>
+  <script src="bundle.ToolGLTFValidator.js" async></script>
+  <script src="bundle.ToolDracoCompressor.js" async></script>
+  <!-- {{/has_option.embed}} -->
 </head>
 <body>
   <!-- -{{#has_option.embed}}-><input class="kiosk-checkbox" type="checkbox" id="kiosk-input" checked><!-{{/has_option.embed}}- -->
@@ -79,7 +87,7 @@
       three.js<br>r87
     </a>
     <span class="separator hidden-md-down"> | </span>
-    <a class="item hidden-sm-down" target="_blank" href="https://github.com/mrdoob/three.js/blob/5fb2e0/examples/js/loaders/GLTFLoader.js">
+    <a class="item hidden-xs-down" target="_blank" href="https://github.com/mrdoob/three.js/blob/5fb2e0/examples/js/loaders/GLTFLoader.js">
       GLTFLoader<br>#5fb2e0
     </a>
     <!--
@@ -93,10 +101,10 @@
       glTF Viewer<br>master</a> <a target="_blank" href="https://github.com/InSimo/three-gltf-viewer">(+patches)</a>
     </span>
     <span class="separator hidden-md-down"> | </span>
-    <a class="item hidden-md-down" target="_blank" href="https://github.com/KhronosGroup/glTF-Validator/tree/2.0.0-dev.0">
+    <a class="item hidden-sm-down" target="_blank" href="https://github.com/KhronosGroup/glTF-Validator/tree/2.0.0-dev.0">
       glTF Validator<br>2.0.0-dev.0
     </a>
-    <a class="item hidden-md-down" target="_blank" href="https://github.com/google/draco/tree/1.2.0">
+    <a class="item hidden-sm-down" target="_blank" href="https://github.com/google/draco/tree/1.2.0">
       Draco<br>1.2.0
     </a>
     <span class="flex-grow"></span>

@@ -1,12 +1,13 @@
 require('setimmediate');
 const validator = require('gltf-validator');
 
-module.exports = class ToolGLTFValidator {
+class ToolGLTFValidator {
 
   constructor () {
     this.name = 'Validator';
     this.icon = '<img src="assets/icons/glTF.svg" alt="glTF">';
     this.title = 'glTF Validator';
+    this.order = 1;
   }
 
   run (gltfContent) {
@@ -33,4 +34,11 @@ module.exports = class ToolGLTFValidator {
       }
     });
   }
+}
+
+if (window.toolManager !== undefined) {
+  window.toolManager.addTool(new ToolGLTFValidator());
+}
+else {
+  console.error('ToolManager NOT FOUND');
 }

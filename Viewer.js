@@ -6,7 +6,7 @@ const environments = require('./assets/environment/index');
 const createVignetteBackground = require('three-vignette-background');
 const SceneInformation = require('./SceneInformation');
 
-require('./lib/draco/draco_decoder');
+//require('./lib/draco/draco_decoder');
 require('./lib/draco/DRACOLoader');
 require('./lib/GLTFLoader');
 require('./lib/OrbitControls');
@@ -171,7 +171,7 @@ module.exports = class Viewer {
       });
 
       const loader = new THREE.GLTFLoader();
-      loader.setDRACOLoader( new THREE.DRACOLoader( undefined, {type: 'js'} ) );
+      loader.setDRACOLoader( new THREE.DRACOLoader( 'lib/draco/', {type: 'wasm'} ) );
       loader.setCrossOrigin('anonymous');
       const blobURLs = [];
 

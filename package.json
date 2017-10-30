@@ -7,18 +7,21 @@
   "browser": "browser.js",
   "scripts": {
     "electron": "electron .",
-    "build": "browserify browser.js -o bundle.js",
+    "build": "browserify browser.js Tool*.js -p [ factor-bundle -o 'cat > bundle.`basename $FILE`' ] -o bundle.common.js",
+    "build:dev": "browserify browser.js Tool*.js --debug -p [ factor-bundle -o 'cat > bundle.`basename $FILE`' ] -o bundle.common.js",
+    "build:uglify": "browserify browser.js Tool*.js --debug -g uglifyify -p [ factor-bundle -o 'exorcist bundle.`basename $FILE`.map > bundle.`basename $FILE`' ] | exorcist bundle.common.js.map > bundle.common.js",
+    "build:production": "browserify browser.js Tool*.js -g uglifyify -p [ factor-bundle -o 'cat > bundle.`basename $FILE`' ] | cat > bundle.common.js",
     "package": "npm run package:windows && npm run package:mac && npm run package:linux",
     "package:windows": "electron-packager . gltf-viewer --overwrite --asar --platform=win32 --arch=ia32 --icon=assets/icons/glTF-Viewer.ico --out=dist --version-string.CompanyName=CE --version-string.FileDescription=CE --version-string.ProductName=\"glTF Viewer\"",
     "package:mac": "electron-packager . --overwrite --platform=darwin --arch=x64 --icon=assets/icons/glTF-Viewer.icns --out=dist",
     "package:linux": "electron-packager . gltf-viewer --overwrite --asar --platform=linux --arch=x64 --icon=assets/icons/glTF-Viewer.png --out=dist",
-    "watch": "watchify --debug browser.js -o bundle.js -v",
+    "watch": "watchify browser.js Tool*.js --debug -p [ factor-bundle -o 'cat > bundle.`basename $FILE`' ] -v -o bundle.common.js",
     "start": "npm run build && node server.js",
     "dev": "concurrently \"npm run watch\" \"nodemon server.js\"",
     "dev:electron": "concurrently \"watchify browser.js -o bundle.js\" \"npm run electron\"",
     "test": "node scripts/gen_test.js",
     "deploy": "npm run build && now --static && npm run clean",
-    "clean": "rm bundle.js",
+    "clean": "rm bundle.*",
     "postversion": "git push && git push --tags"
   },
   "now": {
@@ -61,9 +64,13 @@
     "concurrently": "^3.5.0",
     "electron": "^1.7.9",
     "electron-packager": "^9.1.0",
+    "exorcist": "^1.0.0",
+    "factor-bundle": "^2.5.0",
     "glslify": "^6.1.0",
-    "nodemon": "^1.12.1",
     "node-fetch": "^1.7.3",
+    "nodemon": "^1.12.1",
+    "source-map-explorer": "^1.5.0",
+    "uglifyify": "^4.0.4",
     "watchify": "^3.9.0"
   },
   "browserify": {
@@ -74,7 +81,12 @@
   "nodemonConfig": {
     "ignore": [
       ".git",
-      "data"
+      "data",
+      "lib",
+      "bundle*.js",
+      "bundle*.js.map",
+      "browser.js",
+      "Tool*"
     ]
   }
 }

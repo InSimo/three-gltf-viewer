@@ -1,11 +1,11 @@
-const DRACOLoader = require('./lib/draco/DRACOLoader');
-const FileSaver = require('file-saver');
+const DracoEncoderModule = require('./lib/draco/draco_encoder')();
 
-module.exports = class ToolDracoCompressor {
+class ToolDracoCompressor {
 
   constructor () {
     this.name = 'Draco Compressor';
     this.icon = '<img src="assets/icons/draco-56.png" alt="Draco">';
+    this.order = 10;
   }
 
   run (gltfContent) {
@@ -15,10 +15,9 @@ module.exports = class ToolDracoCompressor {
       for (var k = 0; k < gltfContent.gltf.meshes[j].primitives.length; ++k) { 
 
         // console.time( 'DracoCompressorAttribute' );
-        const encoderModule = DracoEncoderModule();
-        const encoder = new encoderModule.Encoder();
-        const meshBuilder = new encoderModule.MeshBuilder();
-        const dracoMesh = new encoderModule.Mesh();
+        const encoder = new DracoEncoderModule.Encoder();
+        const meshBuilder = new DracoEncoderModule.MeshBuilder();
+        const dracoMesh = new DracoEncoderModule.Mesh();
         
         var primitive = gltfContent.gltf.meshes[j].primitives[k];
 
@@ -30,15 +29,15 @@ module.exports = class ToolDracoCompressor {
         var compressedAttributes = {};
 
         for(var [key, value] of Object.entries(primitive.attributes)) {
-          var encoderType = encoderModule.GENERIC;
+          var encoderType = DracoEncoderModule.GENERIC;
           if (key=='POSITION')
-            encoderType = encoderModule.POSITION;
+            encoderType = DracoEncoderModule.POSITION;
           else if (key=='NORMAL')
-            encoderType = encoderModule.NORMAL;
+            encoderType = DracoEncoderModule.NORMAL;
           else if (key.slice(0,8)=='TEXCOORD')
-            encoderType = encoderModule.TEX_COORD;
+            encoderType = DracoEncoderModule.TEX_COORD;
           else if (key.slice(0,5)=='COLOR')
-            encoderType = encoderModule.COLOR;
+            encoderType = DracoEncoderModule.COLOR;
           
           var attrArray = gltfContent.getAccessorArrayBuffer(value);
 
@@ -50,25 +49,25 @@ module.exports = class ToolDracoCompressor {
 
 
         // console.time( 'DracoCompressorEncoder' );
-        const encodedData = new encoderModule.DracoInt8Array();
+        const encodedData = new DracoEncoderModule.DracoInt8Array();
         
         var method = "edgebreaker";
         if (method === "edgebreaker") {
-          encoder.SetEncodingMethod(encoderModule.MESH_EDGEBREAKER_ENCODING);
+          encoder.SetEncodingMethod(DracoEncoderModule.MESH_EDGEBREAKER_ENCODING);
         } else if (method === "sequential") {
-          encoder.SetEncodingMethod(encoderModule.MESH_SEQUENTIAL_ENCODING);
+          encoder.SetEncodingMethod(DracoEncoderModule.MESH_SEQUENTIAL_ENCODING);
         }
         
         // Use default encoding setting.
         const encodedLen = encoder.EncodeMeshToDracoBuffer(dracoMesh, encodedData);
-        encoderModule.destroy(dracoMesh);
-        encoderModule.destroy(encoder);
-        encoderModule.destroy(meshBuilder);
+        DracoEncoderModule.destroy(dracoMesh);
+        DracoEncoderModule.destroy(encoder);
+        DracoEncoderModule.destroy(meshBuilder);
 
         // console.timeEnd( 'DracoCompressorEncoder' );
 
         if (encodedLen==0)
-          console.log('ERROR encoded lenght is 0');
+          console.log('ERROR encoded length is 0');
         
         // console.time('ArrayInt8');
         var encodedDataSize = encodedData.size();
@@ -104,4 +103,11 @@ module.exports = class ToolDracoCompressor {
 
     console.timeEnd( 'DracoCompressor' );
   }
+}
+
+if (window.toolManager !== undefined) {
+  window.toolManager.addTool(new ToolDracoCompressor());
+}
+else {
+  console.error('ToolManager NOT FOUND');
 }

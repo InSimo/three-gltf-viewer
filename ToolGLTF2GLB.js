@@ -1,10 +1,14 @@
-const mime = require('mime-types');
+// we no longer include mime-types, because it adds 140KB of minified js code
+// while we only need to recognize image types, which can only be either jpeg or png
+// according to the glTF 2.0 specification
+//const mime = require('mime-types');
 
-module.exports = class ToolGLTF2GLB {
+class ToolGLTF2GLB {
 
   constructor () {
     this.name = 'glTF ➔ glb';
     this.icon = '▶';
+    this.order = 2;
   }
 
   run ( gltfContent ) {
@@ -16,6 +20,12 @@ module.exports = class ToolGLTF2GLB {
     var buffers = json.buffers = json.buffers || [];
     var bufferViews = json.bufferViews = json.bufferViews || [];
     var images = json.images || [];
+
+	const imageExtMIME = {
+	  'png':'image/png',
+	  'jpg':'image/jpeg',
+	  'jpeg':'image/jpeg'
+	};
 
     // 1. create an array of all the data 'chunk' to be concatenated into the unique binary buffer
     //    relevant data is all buffers and all images
@@ -102,7 +112,8 @@ module.exports = class ToolGLTF2GLB {
           // we need to create a bufferView for this image
           var bufferViewIndex = bufferViews.length;
           var bufferView = { buffer: 0, byteOffset: inputImageStartInOutputBuffer[i], byteLength: file.byteLength };
-          var mimeType = mime.lookup(uri);
+          var extension = uri.match(/\.([^\.\/\?#]+)($|\?|#)/)[1];
+          var mimeType = imageExtMIME[extension];
           if (mimeType) {
             image.mimeType = mimeType;
           }
@@ -186,4 +197,11 @@ module.exports = class ToolGLTF2GLB {
     gltfContent.gltf = json;
 
   }
+}
+
+if (window.toolManager !== undefined) {
+  window.toolManager.addTool(new ToolGLTF2GLB());
+}
+else {
+  console.error('ToolManager NOT FOUND');
 }

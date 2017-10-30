@@ -1,11 +1,12 @@
 const Detector = require('./lib/Detector');
 const Viewer = require('./Viewer');
 const DropController = require('./DropController');
+const ToolManager = require('./lib/ToolManager');
 const queryString = require('query-string');
-const JSZip = require('jszip');
+//const JSZip = require('jszip');
 const FileSaver = require('file-saver');
 const renderjson = require('renderjson');
-const GLTFBindig = require('./GLTFBinding');
+const GLTFBinding = require('./GLTFBinding');
 
 if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('The File APIs are not fully supported in this browser.');
@@ -13,31 +14,8 @@ if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('WebGL is not supported in this browser.');
 }
 
-var ToolsAvailable = [];
-try {
-  const ToolGLTF2GLB = require('./ToolGLTF2GLB');
-  ToolsAvailable.push(new ToolGLTF2GLB());
-}
-catch(e) {
-  console.error('ToolGLTF2GLB failed to load');
-  console.error(e);
-}
-try {
-  const ToolGLTFValidator = require('./ToolGLTFValidator');
-  ToolsAvailable.push(new ToolGLTFValidator());
-}
-catch(e) {
-  console.error('ToolGLTFValidator failed to load');
-  console.error(e);
-}
-try {
-  const ToolDracoCompressor = require('./ToolDracoCompressor');
-  ToolsAvailable.push(new ToolDracoCompressor());
-}
-catch(e) {
-  console.error('ToolDracoCompressor failed to load');
-  console.error(e);
-}
+var gltfContent = window.gltfContent = new GLTFBinding();
+var toolManager = window.toolManager = new ToolManager(gltfContent);
 
 function humanFileSize(size) {
   var i = ( size <= 0 ) ? 0 : Math.min( 4, Math.floor( Math.log(size) / Math.log(1000) ) );
@@ -55,7 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let viewer;
   let viewerEl;
   let rootName = '';
-  let gltfContent = new GLTFBindig();
 
   function scheduleResize() {
     if (viewer) {
@@ -173,69 +150,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  const panelTitleEl = document.querySelector('#panel-title');
-  const panelContentEl = document.querySelector('#panel-content');
-  const panelCheckBox = document.querySelector('#panel-input');
+  toolManager.setupGUI();
 
-  const toolsMenuEl = document.querySelector('#tools-menu');
-  const toolsMenuElChild0 = toolsMenuEl.children[0];
+  toolManager.on('toolstart', () => {
+    spinnerEl.style.display = null;
+  });
 
-  for(let i = 0; i < ToolsAvailable.length; ++i) {
-    let tool = ToolsAvailable[i];
-    let button = document.createElement("button");
-    button.setAttribute('class','item');
-    button.innerHTML = '<span class="icon">'+tool.icon+'</span>&nbsp;&nbsp;'+tool.name+'</button>';
-    toolsMenuEl.insertBefore(button,toolsMenuElChild0);
-    button.addEventListener('click', function(e) {
-      spinnerEl.style.display = '';
-      panelTitleEl.innerHTML = tool.title || tool.name;
-      panelContentEl.innerHTML = 'Processing...';
-      panelContentEl.classList.remove('status-wip','status-ok','status-error');
-      panelContentEl.classList.add('status-wip');
-      try {
-        var p = tool.run( gltfContent );
-        if (p) {
-          panelCheckBox.checked = true;
-          p.then(function(res) {
-            console.log(res);
-            spinnerEl.style.display = 'none';
-            panelContentEl.classList.remove('status-wip');
-            panelContentEl.classList.add((res.error || res.errors) ? 'status-error' : 'status-ok');
-            if (typeof res === 'string') {
-              panelContentEl.innerHTML = res;
-            }
-            else {
-              //panelContentEl.innerHTML = JSON.stringify(res, null, 2);
-              panelContentEl.innerHTML = ''; // clear the panel content
-              var resEl = renderjson.set_show_to_level(2)(res);
-              panelContentEl.appendChild(resEl);
-            }
-          })
-            .catch(function (err) {
-              console.error(err);
-              spinnerEl.style.display = 'none';
-              panelContentEl.classList.remove('status-wip');
-              panelContentEl.classList.add('status-error');
-              panelContentEl.innerHTML = err;
-            });
-        }
-        else {
-          panelContentEl.classList.remove('status-wip');
-          panelContentEl.classList.add('status-ok');
-          panelContentEl.innerHTML = '';
-        }
-      }
-      catch (err) {
-        console.error(err);
-        spinnerEl.style.display = 'none';
-          panelCheckBox.checked = true;
-        panelContentEl.classList.remove('status-wip');
-        panelContentEl.classList.add('status-error');
-        panelContentEl.innerHTML = err;
-      }
-      updateButtons();
-    });
-  }
+  toolManager.on('toolerror', () => {
+    spinnerEl.style.display = 'none';
+  });
+
+  toolManager.on('tooldone', () => {
+    spinnerEl.style.display = 'none';
+    updateButtons();
+  });
 
   const dropEl = document.querySelector('.dropzone');
   const dropCtrl = new DropController(dropEl);

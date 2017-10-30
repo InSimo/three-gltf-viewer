@@ -1,4 +1,4 @@
-const EventEmitter = require('events');
+const EventEmitter = require('events').EventEmitter;
 const zip = window.zip = require('zipjs-browserify');
 
 require('./lib/zip-fs');

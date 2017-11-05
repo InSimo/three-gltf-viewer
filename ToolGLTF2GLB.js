@@ -1,5 +1,5 @@
 // we no longer include mime-types, because it adds 140KB of minified js code
-// while we only need to recognize image types, which can only be either jpeg or png
+// while we only need to recognize image types, which can only be jpeg or png
 // according to the glTF 2.0 specification
 //const mime = require('mime-types');
 
@@ -192,10 +192,8 @@ class ToolGLTF2GLB {
 
     console.log(outputBinary);
 
-    gltfContent.binary = outputBinary;
-    gltfContent.files = new Map();
-    gltfContent.gltf = json;
-
+    return gltfContent.loadSingleFile(gltfContent.name+'.glb', gltfContent.name, outputBinary)
+      .then(() => gltfContent.info );
   }
 }
 

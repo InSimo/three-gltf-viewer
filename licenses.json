@@ -1,0 +1,54 @@
+{
+  "CC BY 4.0": {
+    "uri": "https://creativecommons.org/licenses/by/4.0/",
+    "hash_sha224": "a4579d76ac2881987bc225da7a5a4d215c7073256393b47397ed3f55"
+  },
+  "CC BY-SA 4.0": {
+    "uri": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "hash_sha224": "821ee12a15621d7e15920ef82e619d4b6a0f3e35540a8182912dccb7"
+  },
+  "CC BY-NC 4.0": {
+    "uri": "https://creativecommons.org/licenses/by-nc/4.0/",
+    "hash_sha224": "bf53c27db259b528da5d1cc01db82f1206ff7cd3c6d3e2b2cbb47cef"
+  },
+  "CC BY-NC-SA 4.0": {
+    "uri": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "hash_sha224": "453caa29fce77ca4b8d83008038bdf98887ff2c5250617c9ed65848e"
+  },
+  "CC BY-ND 4.0": {
+    "uri": "https://creativecommons.org/licenses/by-nd/4.0/",
+    "hash_sha224": "381df2d62ace0e4af61aafddc14ce22d85339f78e3d06a3662a925c0"
+  },
+  "CC BY-NC-ND 4.0": {
+    "uri": "https://creativecommons.org/licenses/by-nc-nd/4.0/",
+    "hash_sha224": "f075ebbdd92bfc126f99b7242ba35ef139da81f5d47e565d7fe4e72c"
+  },
+  "CC BY 3.0": {
+    "uri": "https://creativecommons.org/licenses/by/3.0/",
+    "hash_sha224": "792268d389bd61472729c018d1285b352fd93c16a23500840afdeec1"
+  },
+  "CC BY-SA 3.0": {
+    "uri": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "hash_sha224": "18db23f1a9aa11aa680f659f3a0e0826443aae34b897c66532c79f6e"
+  },
+  "CC BY-ND 3.0": {
+    "uri": "https://creativecommons.org/licenses/by-nd/3.0/",
+    "hash_sha224": "e67c52f886ce551a453646bb2cbd390667e5e319c275e0dbb593409c"
+  },
+  "CC BY-NC 3.0": {
+    "uri": "https://creativecommons.org/licenses/by-nc/3.0/",
+    "hash_sha224": "e4002bd11cdb0016ecd9022c171163f3d47585c3defe00bbbd45bae7"
+  },
+  "CC BY-NC-SA 3.0": {
+    "uri": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+    "hash_sha224": "608934c8ee6d09841d4f1cf0389e4d55100dc873c7b9ffa4f592227b"
+  },
+  "CC BY-NC-ND 3.0": {
+    "uri": "https://creativecommons.org/licenses/by-nc-nd/3.0/",
+    "hash_sha224": "6653a57d53f145768bc764a1e9f1ad33b4669ff811de79f156341181"
+  },
+  "CC0 1.0": {
+    "uri": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "hash_sha224": "9ed78c5d84b40ce443cf1f5ec2ce9e8afa382b35dca2232534d3b1c2"
+  }
+}

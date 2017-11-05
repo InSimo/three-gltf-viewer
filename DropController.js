@@ -162,11 +162,11 @@ class DropController extends EventEmitter {
    */
   emitResult (fileMap, containerFile = undefined) {
     let rootFile;
-    let rootPath;
+    let rootFilePath;
     fileMap.forEach((file, path) => {
       if (file.name.match(RE_GLTF)) {
         rootFile = file;
-        rootPath = path.replace(file.name, '');
+        rootFilePath = path; //.replace(file.name, '');
       }
     });
 
@@ -177,7 +177,7 @@ class DropController extends EventEmitter {
     this.emit('drop', {
       containerFile: containerFile || rootFile,
       rootFile: rootFile,
-      rootPath: rootPath,
+      rootFilePath: rootFilePath,
       fileMap: fileMap
     });
   }

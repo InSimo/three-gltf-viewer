@@ -25,7 +25,6 @@ module.exports = class Viewer {
     this.mixer = null;
     this.clips = [];
     this.gui = null;
-    this.sceneInformation = null;
 
     this.state = {
       environment: environments[1].name,
@@ -156,7 +155,7 @@ module.exports = class Viewer {
     }
   }
 
-  load ( gltfContent, rootName, containerFile, url, rootPath, assetMap, initState = {} ) {
+  load ( rootName, url, rootFilePath, assetMap, initState = {} ) {
 
     return new Promise((resolve, reject) => {
 
@@ -171,14 +170,16 @@ module.exports = class Viewer {
       });
 
       const loader = new THREE.GLTFLoader();
-      loader.setDRACOLoader( new THREE.DRACOLoader( 'lib/draco/', {type: 'wasm'} ) );
+      loader.setDRACOLoader( new THREE.DRACOLoader( 'lib/draco/', {type: 'js'} ) );
       loader.setCrossOrigin('anonymous');
       const blobURLs = [];
-
+      //const rootPath = rootFilePath.split('/').splice(0,1).join('/');
+      const rootPath = rootFilePath.lastIndexOf('/') == -1 ? '': rootFilePath.slice(0, rootFilePath.lastIndexOf('/'));
       // Hack to intercept relative URLs.
       window.gltfPathTransform = (url, path) => {
 
         const normalizedURL = rootPath + url.replace(/^(\.?\/)/, '');
+        console.log("url="+url+" path="+path+" rootPath="+rootPath+" => "+normalizedURL);
         if (assetMap.has(normalizedURL)) {
           const blob = assetMap.get(normalizedURL);
           const blobURL = URL.createObjectURL(blob);
@@ -195,7 +196,6 @@ module.exports = class Viewer {
         const scene = gltf.scene || gltf.scenes[0];
         const clips = gltf.animations || [];
         const contentBinary = gltf.binaryBlob;
-        this.setSceneInformation(rootName, containerFile, url, rootPath, assetMap, gltf, loader, loadedURLs);
         this.setContent(gltfContent, scene, clips, gltf.json, contentBinary, assetMap, initState);
 
         blobURLs.forEach(URL.revokeObjectURL);
@@ -276,26 +276,11 @@ module.exports = class Viewer {
     this.updateGUI();
     this.updateEnvironment();
     this.updateDisplay();
-    this.updateGUISceneInformation();
 
     window.content = this.content;
 
-    gltfContent.setGLTF(this.contentGLTF);
-    gltfContent.setBinary(this.contentBinary);
-    gltfContent.setFiles(this.contentFiles);
-    gltfContent.setInfo(this.sceneInformation);
-
-    window.gltfContent = gltfContent;
-
-    console.info('[glTF Viewer] THREE.Scene exported as `window.content`, GLTF as `gltfContent.gltf`, metadata as `gltfContent.info`.');
-    if (gltfContent.binary) {
-      console.log('binary blob version as `gltfContent.binary`');
-    }
-    if (gltfContent.files) {
-      console.log('binary files version as `gltfContent.files`');
-    }
+    console.info('[glTF Viewer] THREE.Scene exported as `window.content`');
     this.printGraph(this.content);
-    console.log(this.sceneInformation);
 
   }
 
@@ -587,7 +572,7 @@ module.exports = class Viewer {
     this.scene.remove( this.content );
   }
 
-  getState() {
+  getState () {
     var copy = Object.assign({}, this.state);
     // copy the default camera position if it is the default camera
     copy.defaultCamera = {
@@ -599,100 +584,8 @@ module.exports = class Viewer {
     return copy;
   }
 
-  setSceneInformation( rootName, containerFile, url, rootPath, assetMap, gltf, loader, externalURLs) {
-    const parser = loader.parser;
-    const json = gltf.json;
-    var info = this.sceneInformation = new SceneInformation();
-    info.name = rootName;
-    var fullfilename;
-    if (!fullfilename && containerFile !== undefined) {
-      if (typeof containerFile === 'string') {
-        fullfilename = containerFile;
-      }
-      else if (containerFile.name) {
-        fullfilename = containerFile.name;
-      }
-    }
-    if (!fullfilename && url !== undefined) {
-      if (typeof url === 'string') {
-        fullfilename = url;
-      }
-      else if (url.name) {
-        fullfilename = url.name;
-      }
-    }
-    if (!fullfilename) {
-      info.filename = '';
-    }
-    else {
-      info.filename = fullfilename.match(/([^\/\\]+)$/)[1];
-    }
-
-    info.format.name = 'glTF';
-    info.format.version = json.asset.version;
-    info.format.extensions = json.extensionsUsed || [];
-
-	const EXTMAP = {
-	  'gltf': 'model/gltf',
-	  'glb': 'model/gltf.binary',
-	  'zip': 'application/zip'
-	};
-
-    // reverse of EXTMAP
-    const MIMEMAP = Object.entries(EXTMAP).reduce((r,x) => { r[x[1]] = x[0]; return r; }, {});
-
-    if (gltf.binaryData) {
-      info.container.size = gltf.binaryData.size || gltf.binaryData.byteLength;
-      info.container.mimetype = 'model/gltf.binary';
-      info.container.extension = 'glb';
-      info.format.extensions.push('KHR_binary_glTF');
-    }
-
-    if (containerFile !== undefined)
-    {
-      if (typeof containerFile === 'string') {
-        info.container.extension = fullfilename.toLowerCase().match(/.([^.\/\\]+)$/)[1] || info.container.extension;
-        if (info.container.extension in EXTMAP) {
-          info.container.mimetype = EXTMAP[info.container.extension];
-        }
-        //info.internalFiles.push(containerFile);
-      }
-      else { // assuming it's a file
-        info.container.mimetype = containerFile.type || info.container.mimetype;
-        info.container.size = containerFile.size || info.container.size;
-        if (info.container.mimetype in MIMEMAP) {
-          info.container.extension = MIMEMAP[info.container.mimetype];
-        }
-        //info.internalFiles.push(containerFile.name || rootName);
-      }
-    }
-
-    var totalAssetSize = 0;
-    if (assetMap !== undefined) {
-      for(const [k,v] of assetMap.entries()) {
-        info.internalFiles[k] = v.size || 0;
-        totalAssetSize += v.size || 0;
-      }
-    }
-
-    if (externalURLs !== undefined) {
-      for(const [k,v] of externalURLs.entries()) {
-        info.externalURLs[k] = k.status || '';
-      }
-    }
-
-    if (totalAssetSize > 0) {
-      info.size = totalAssetSize;
-    }
-    else if (info.container.size > 0) {
-      info.size = info.container.size;
-    }
-
-    return info;
-  }
-
-  updateGUISceneInformation () {
-    this.updateGUIInfoFolder(this.sceneInformation, this.infoGUI );
+  updateGUISceneInformation (info) {
+    this.updateGUIInfoFolder(info, this.infoGUI );
   }
 
   updateGUIInfoFolder (info, gui) {

@@ -1,12 +1,12 @@
 const Detector = require('./lib/Detector');
 const Viewer = require('./Viewer');
 const DropController = require('./DropController');
-const ToolManager = require('./lib/ToolManager');
+const GLTFContainer = require('./GLTFContainer');
+const BaseToolManager = require('./BaseToolManager');
 const queryString = require('query-string');
 //const JSZip = require('jszip');
 const FileSaver = require('file-saver');
 const renderjson = require('renderjson');
-const GLTFBinding = require('./GLTFBinding');
 
 if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('The File APIs are not fully supported in this browser.');
@@ -14,8 +14,8 @@ if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('WebGL is not supported in this browser.');
 }
 
-var gltfContent = window.gltfContent = new GLTFBinding();
-var toolManager = window.toolManager = new ToolManager(gltfContent);
+var gltfContent = window.gltfContent = new GLTFContainer();
+var toolManager = window.toolManager = new BaseToolManager(gltfContent);
 
 function humanFileSize(size) {
   var i = ( size <= 0 ) ? 0 : Math.min( 4, Math.floor( Math.log(size) / Math.log(1000) ) );
@@ -32,7 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let viewer;
   let viewerEl;
-  let rootName = '';
 
   function scheduleResize() {
     if (viewer) {
@@ -73,17 +72,17 @@ document.addEventListener('DOMContentLoaded', () => {
   let kioskCheckBox = document.querySelector('.kiosk-checkbox');
   kioskCheckBox.addEventListener( 'change', scheduleResize );
 
-  const updateButtons = ( params = {} ) => {
+  function updateButtons ( params = {} ) {
     if (window.content) {
       closeBtnEl.style.display = null;
     }
-    if (gltfContent.binary) {
+    if (window.gltfContent.containerData) {
       downloadBtnEl.style.display = (!params.hasOwnProperty('canSave') || params.canSave) ? null : 'none';
       if (IS_UPLOAD_SUPPORTED && (!params.hasOwnProperty('canShare') || params.canShare)) {
         shareBtnEl.style.display = null;
         var text = '';
-        if (window.gltfContent.binary.size > 0) {
-          text = '(' + humanFileSize(window.gltfContent.binary.size) + ')';
+        if (window.gltfContent.containerData.size > 0) {
+          text = '(' + humanFileSize(window.gltfContent.containerData.size) + ')';
         }
         shareBtnEl.lastElementChild.innerHTML = text;
       }
@@ -102,14 +101,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const downloadBtnEl = document.querySelector('#download-btn');
   downloadBtnEl.addEventListener('click', function () {
-    if (gltfContent.binary) {
-      FileSaver.saveAs(gltfContent.binary, (rootName||'output')+'.glb');
+    if (window.gltfContent.containerData) {
+      var glbBlob = new Blob([window.gltfContent.containerData], { type: window.gltfContent.info.container.mimetype || 'model/gltf-binary' });
+      FileSaver.saveAs(glbBlob, (window.gltfContent.name||'output')+'.'+(window.gltfContent.info.container.fileextension||'glb'));
     }
   });
   const closeBtnEl = document.querySelector('#close-btn');
   closeBtnEl.addEventListener('click', function () {
     if (!viewer) return;
     viewer.clear();
+    window.gltfContent.clear();
+    if (panelCheckBox) {
+      panelCheckBox.checked = false;
+    }
     rootName = '';
     document.title = 'glTF Viewer';
     // show dropzone UI elements
@@ -127,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
   shareBtnEl.addEventListener('click', function () {
   viewer.renderImage(512,512,function(imageBlob) {
     var formData = new FormData();
-    var glbBlob = gltfContent.binary;
+    var glbBlob = new Blob([window.gltfContent.containerData], { type: window.gltfContent.info.container.mimetype || 'model/gltf-binary' });
     var viewState = viewer.getState();
     //viewState.name = rootName;
     var viewBlob = new Blob([JSON.stringify(viewState)], {type: 'application/json'});
@@ -150,34 +154,77 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  toolManager.setupGUI();
+  const toolsMenuElement = document.querySelector('#tools-menu');
+  const panelTitleElement = document.querySelector('#panel-title');
+  const panelContentElement = document.querySelector('#panel-content');
+  const panelCheckBox = document.querySelector('#panel-input');
+  toolManager.setupGUI(toolsMenuElement);
 
-  toolManager.on('toolstart', () => {
+  function onToolStart ({tool, message}) {
     spinnerEl.style.display = null;
-  });
+    if (panelTitleElement !== undefined) {
+      panelTitleElement.innerHTML = tool.title || tool.name;
+    }
+    if (panelContentElement !== undefined) {
+      panelContentElement.innerHTML = message || 'Processing...';
+      panelContentElement.classList.remove('status-wip','status-ok','status-error');
+      panelContentElement.classList.add('status-wip');
+    }
+  }
 
-  toolManager.on('toolerror', () => {
+  function onToolDone ({tool, result}) {
     spinnerEl.style.display = 'none';
-  });
-
-  toolManager.on('tooldone', () => {
-    spinnerEl.style.display = 'none';
+    if (panelCheckBox !== undefined) {
+      panelCheckBox.checked = true;
+    }
+    if (panelContentElement !== undefined) {
+      panelContentElement.classList.remove('status-wip');
+      panelContentElement.classList.add((result && (result.error || result.errors)) ? 'status-error' : 'status-ok');
+      panelContentElement.innerHTML = ''; // clear the panel content
+      if (result === undefined) {
+      } else if (typeof result === 'string') {
+        panelContentElement.appendChild(document.createTextNode(result));
+      } else if (result instanceof Node) {
+        panelContentElement.appendChild(result);
+      } else { // assume JSON-like data
+        //panelContentElement.innerHTML = JSON.stringify(result, null, 2);
+        var resEl = renderjson.set_show_to_level(2)(result);
+        panelContentElement.appendChild(resEl);
+      }
+    }
+    viewer.updateGUISceneInformation(window.gltfContent.info);
     updateButtons();
-  });
+  }
+
+  function onToolError ({tool, error}) {
+    spinnerEl.style.display = 'none';
+    if (panelCheckBox !== undefined) {
+      panelCheckBox.checked = true;
+    }
+    if (panelContentElement !== undefined) {
+      panelContentElement.classList.remove('status-wip');
+      panelContentElement.classList.add('status-error');
+      panelContentElement.innerHTML = error;
+    }
+  }
+
+  toolManager.on('toolstart', onToolStart);
+  toolManager.on('tooldone', onToolDone);
+  toolManager.on('toolerror', onToolError);
 
   const dropEl = document.querySelector('.dropzone');
   const dropCtrl = new DropController(dropEl);
 
-  dropCtrl.on('drop', ({containerFile, rootFile, rootPath, fileMap}) => view(containerFile, rootFile, rootPath, fileMap));
+  dropCtrl.on('drop', ({containerFile, rootFile, rootFilePath, fileMap}) => view(containerFile, rootFile, rootFilePath, fileMap));
   dropCtrl.on('dropstart', () => (spinnerEl.style.display = ''));
   dropCtrl.on('droperror', () => (spinnerEl.style.display = 'none'));
 
   const previewEl = document.querySelector('.preview');
 
-  function view (containerFile, rootFile, rootPath, fileMap, params = {}) {
+  function view (containerFile, rootFile, rootFilePath, fileMap, params = {}) {
     console.log(containerFile);
     console.log(rootFile);
-    console.log(rootPath);
+    console.log(rootFilePath);
     console.log(fileMap);
     console.log(params);
     // hide dropzone UI elements (but don't remove them, so Open menu button still works)
@@ -194,7 +241,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // show viewer
       viewerEl.style.display = null;
     }
-
+    const fileOriginalURL = typeof containerFile === 'string' ? containerFile :
+      containerFile instanceof File ? containerFile.name : '';
     const fileURL = typeof rootFile === 'string'
       ? rootFile
       : URL.createObjectURL(rootFile);
@@ -218,11 +266,19 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    onToolStart({tool:{title:rootName.replace(/_/g,' ')}, message:'Loading...'});
+
     const postLoad = () => {
       document.title = rootName == '' ? 'glTF Viewer' : rootName + ' - glTF';
-      updateButtons(params);
       if (previewEl) // hide preview
         previewEl.style.display = 'none';
+      return window.gltfContent.load(fileOriginalURL, rootName, rootFilePath, containerFile, fileMap)
+        .then(() => window.gltfContent.getCredits())
+        .then((result) => {
+          onToolDone({tool:{title:rootName.replace(/_/,' ')}, result:result});
+          //updateButtons(params);
+          //viewer.updateGUISceneInformation(window.gltfContent.info)
+        });
     };
 
     const cleanup = () => {
@@ -233,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     spinnerEl.style.display = '';
-    viewer.load(gltfContent, rootName, containerFile || rootFile, fileURL, rootPath, fileMap, params.view || {})
+    viewer.load(rootName, fileURL, rootFilePath, fileMap, params.view || {})
       .then(postLoad)
       .then(cleanup)
       .catch((error) => {
@@ -242,6 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         window.alert((error||{}).message || error);
         console.error(error);
+        onToolError({tool:{title:rootName}, error:((error||{}).message || error)});
         cleanup();
       });
   }

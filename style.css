@@ -207,12 +207,12 @@ body {
 }
 
 .panel {
-  width: 50%;
+/*  width: 50%; */
   height: 100%;
   position: absolute;
   left: 0%;
   top: 0%;
-  min-width: 300px;
+  min-width: 100px;
   max-width: 500px;
   padding: 0;
   text-align: left;
@@ -283,6 +283,7 @@ body {
   border-style: solid;
   background: rgba(0, 0, 0, 0.85);
   color: #F5F5F5;
+  white-space: pre-wrap;
 }
 
 .status-wip {
@@ -303,6 +304,24 @@ body {
   max-height: 100%;
   margin: 0;
   overflow-y: auto;
+}
+
+.gltf-credits {
+  font-size: 0.8rem;
+  text-decoration: none;
+  color: #a2a2a2;
+}
+
+.gltf-credits a {
+  text-decoration: none;
+  color: #a2a2a2;
+}
+
+span.gltf-author,
+a.gltf-author {
+  font-size: 1rem;
+  text-decoration: none;
+  color: #FFFFFF;
 }
 
 @media screen and (max-width: 543px) {
@@ -472,6 +491,7 @@ body {
 
 .renderjson {
 /*  font-family: 'Raleway', sans-serif;*/
+    white-space: pre-wrap;
 }
 
 .disclosure {

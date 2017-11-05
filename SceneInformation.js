@@ -18,7 +18,7 @@ module.exports = class SceneInformation {
       extensions: []
     }
     this.container = {
-      extension: '',
+      fileextension: '',
       mimetype: '',
       size: ''
     }
@@ -43,11 +43,11 @@ module.exports = class SceneInformation {
   /**
    * Check if this scene match the given container, either with the mimetype or the file extension
    * @param  {string} mimetype
-   * @param  {string} extension
+   * @param  {string} fileextension
    */
-  matchContainer(mimetype, extension = '') {
+  matchContainer(mimetype, fileextension = '') {
     if (mimetype && this.container.mimetype && mimetype == this.container.mimetype) return true;
-    if (extension && this.container.extension && extension == this.container.extension) return true;
+    if (fileextension && this.container.fileextension && fileextension == this.container.fileextension) return true;
     return false;
   }
 }

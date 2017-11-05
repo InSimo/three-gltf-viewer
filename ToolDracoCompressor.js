@@ -9,19 +9,52 @@ class ToolDracoCompressor {
   }
 
   run (gltfContent) {
+    return new Promise( function(resolve, reject) {
     console.time( 'DracoCompressor' );
+    var gltf = gltfContent.gltf;
+    var result = {};
+    result.overall = {};
+    result.meshes = {};
+    var totalInputSize = 0;
+    var totalOutputSize = 0;
+    var totalTime = 0;
+    for (var j = 0; j < gltf.meshes.length; ++j) {
+      for (var k = 0; k < gltf.meshes[j].primitives.length; ++k) { 
+        var res = result.meshes[j + '_' + (gltf.meshes[j].name || 'mesh') + '_' + k] = {};
+        var primitive = gltf.meshes[j].primitives[k];
+        if (primitive.extensions !== undefined &&
+            primitive.extensions.KHR_draco_mesh_compression !== undefined) {
+          // this primitive is already compressed, do not change it
+          res.status = 'already compressed';
+          // gather stats
+          var inputSize = 0;
+          inputSize += gltfContent.getAccessorByteLength(primitive.indices);
+          for(var [key, value] of Object.entries(primitive.attributes)) {
+            inputSize += gltfContent.getAccessorByteLength(value);
+          }
+          var outputSize = gltf.bufferViews[primitive.extensions.KHR_draco_mesh_compression.bufferView].byteLength;
+          res.inputSize = inputSize;
+          res.outputSize = outputSize;
+          res.ratio = Math.round(1000.0 * outputSize / inputSize)/10 + ' %';
+          totalInputSize += inputSize;
+          totalOutputSize += outputSize;
+          continue;
+        }
+        if (primitive.indices === undefined || primitive.mode != 4 /*GL_TRIANGLES*/ ) {
+          res.status = 'not indexed triangles';
+          continue;
+        }
 
-    for (var j = 0; j < gltfContent.gltf.meshes.length; ++j) {
-      for (var k = 0; k < gltfContent.gltf.meshes[j].primitives.length; ++k) { 
+        var tstart = performance.now();
+        var inputSize = 0;
 
         // console.time( 'DracoCompressorAttribute' );
         const encoder = new DracoEncoderModule.Encoder();
         const meshBuilder = new DracoEncoderModule.MeshBuilder();
         const dracoMesh = new DracoEncoderModule.Mesh();
-        
-        var primitive = gltfContent.gltf.meshes[j].primitives[k];
 
         var indices = gltfContent.getAccessorArrayBuffer(primitive.indices);
+        inputSize += indices.byteLength;
 
         const numFaces = indices.length / 3;
         meshBuilder.AddFacesToMesh(dracoMesh, numFaces, indices);
@@ -40,9 +73,10 @@ class ToolDracoCompressor {
             encoderType = DracoEncoderModule.COLOR;
           
           var attrArray = gltfContent.getAccessorArrayBuffer(value);
+          inputSize += attrArray.byteLength;
 
           var id = meshBuilder.AddFloatAttributeToMesh(
-            dracoMesh, encoderType, attrArray.length, gltfContent.getTypeCount(gltfContent.gltf.accessors[value].type), attrArray);
+            dracoMesh, encoderType, attrArray.length, gltfContent.getTypeCount(gltf.accessors[value].type), attrArray);
           compressedAttributes[key] = id;
         }
         // console.timeEnd( 'DracoCompressorAttribute' );
@@ -50,14 +84,15 @@ class ToolDracoCompressor {
 
         // console.time( 'DracoCompressorEncoder' );
         const encodedData = new DracoEncoderModule.DracoInt8Array();
-        
+        /*
         var method = "edgebreaker";
         if (method === "edgebreaker") {
           encoder.SetEncodingMethod(DracoEncoderModule.MESH_EDGEBREAKER_ENCODING);
         } else if (method === "sequential") {
           encoder.SetEncodingMethod(DracoEncoderModule.MESH_SEQUENTIAL_ENCODING);
         }
-        
+        */
+        encoder.SetSpeedOptions(3,3);
         // Use default encoding setting.
         const encodedLen = encoder.EncodeMeshToDracoBuffer(dracoMesh, encodedData);
         DracoEncoderModule.destroy(dracoMesh);
@@ -67,7 +102,7 @@ class ToolDracoCompressor {
         // console.timeEnd( 'DracoCompressorEncoder' );
 
         if (encodedLen==0)
-          console.log('ERROR encoded length is 0');
+          console.error('ERROR encoded length is 0');
         
         // console.time('ArrayInt8');
         var encodedDataSize = encodedData.size();
@@ -82,26 +117,57 @@ class ToolDracoCompressor {
         const compressedBufferId = gltfContent.addBuffer("mesh_"+j+"_"+k+".bin",encodedArrayBuffer, encodedLen);
         const compressedBufferViewId = gltfContent.addBufferView(compressedBufferId,0, encodedLen);
 
-        gltfContent.gltf.meshes[j].primitives[k]["extensions"] = {
-          KHR_draco_mesh_compression : {
+        if (primitive.extensions === undefined) {
+          primitive.extensions = {};
+        }
+        primitive.extensions.KHR_draco_mesh_compression = {
             bufferView: compressedBufferViewId,
             attributes: compressedAttributes
-          }
-        }
+        };
 
-        for(var [key, value] of Object.entries(primitive.attributes)) {
-          delete gltfContent.gltf.accessors[value].bufferView;
+        for(var [key, value] of Object.entries(primitive.attributes)
+            .concat([['', primitive.indices]])) {
+          var accessor = gltf.accessors[value];
+          delete accessor.bufferView;
+          if (accessor.byteOffset)
+            delete accessor.byteOffset;
         }
-        delete gltfContent.gltf.accessors[primitive.indices].bufferView;
+        var tend = performance.now();
+        var telapsed = tend - tstart;
+        totalInputSize += inputSize;
+        totalOutputSize += encodedLen;
+        totalTime += telapsed;
+        res.inputSize = inputSize;
+        res.outputSize = encodedLen;
+        res.ratio = Math.round(1000.0 * encodedLen / inputSize)/10 + ' %';
+        res.time = Math.round(telapsed) + ' ms';
       }
       // console.timeEnd( 'DracoCompressorGLTF' );
     }
-    gltfContent.gltf["extensionsRequired"] = ["KHR_draco_mesh_compression"];
-    gltfContent.gltf["extensionsUsed"] = ["KHR_draco_mesh_compression"];
+    result.overall.inputSize = totalInputSize;
+    result.overall.outputSize = totalOutputSize;
+    result.overall.ratio = Math.round(1000.0 * totalOutputSize / totalInputSize)/10 + ' %';
+    result.overall.time = Math.round(totalTime) + ' ms';
+    if (gltf.extensionsRequired === undefined) {
+      gltf.extensionsRequired = [];
+    }
+    if (gltf.extensionsRequired.indexOf("KHR_draco_mesh_compression") == -1) {
+      gltf.extensionsRequired.push("KHR_draco_mesh_compression");
+    }
+    if (gltf.extensionsUsed === undefined) {
+      gltf.extensionsUsed = [];
+    }
+    if (gltf.extensionsUsed.indexOf("KHR_draco_mesh_compression") == -1) {
+      gltf.extensionsUsed.push("KHR_draco_mesh_compression");
+    }
+    gltfContent.containerData = undefined;
+    gltfContent.updateSceneInformation();
 
-    // console.log(gltfContent.gltf);
+    // console.log(gltf);
 
     console.timeEnd( 'DracoCompressor' );
+    resolve(result);
+    });
   }
 }
 

@@ -10,25 +10,34 @@ class ToolGLTFValidator {
     this.order = 1;
   }
 
+  /**
+   * @param {GLTFContainer} gltfContent - Input GLTF scene to validate
+   * @returns {Promise} - Promise with json result
+   */
   run (gltfContent) {
+    /**
+     * @param {string} uri - Relative URI of the external resource
+     * @returns {Promise} - Promise with Uint8Array data
+     */
+    var loadExternalResource = function(uri) {
+      var array = gltfContent.getFileArrayBuffer(uri);
+      if (array !== undefined) {
+        return Promise.resolve(new Uint8Array(array));
+      } else {
+        return Promise.reject(new Error('loadExternalResource failed, uri ' + uri + ' not found.'));
+      }
+    }
     return new Promise( function(resolve, reject) {
-      const blob = gltfContent.binary;
       const json = gltfContent.gltf;
-      if (blob) {
-        //var array = new Uint8Array(blob);
-        var reader = new FileReader();
-        reader.readAsArrayBuffer(blob);
-        reader.onload = function() {
-          var arrayBuffer = reader.result
-          var bytes = new Uint8Array(arrayBuffer);
-          validator.validateBytes(gltfContent.info.name,bytes)
-            .then(resolve)
-            .catch(reject);
-        }
+      if (gltfContent.containerData && gltfContent.info.container.mimetype == 'model/gltf-binary') {
+        var array = new Uint8Array(gltfContent.containerData);
+        validator.validateBytes(gltfContent.info.name, bytes, loadExternalResource)
+          .then(resolve)
+          .catch(reject);
       }
       else if (json) {
         var string = JSON.stringify(json);
-        validator.validateString(gltfContent.info.name,string)
+        validator.validateString(gltfContent.info.name, string, loadExternalResource)
           .then(resolve)
           .catch(reject);
       }

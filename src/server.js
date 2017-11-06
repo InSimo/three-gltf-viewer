@@ -7,6 +7,8 @@ const multer  = require('multer');
 const crypto = require('crypto');
 const mustache = require('mustache');
 
+const rootDir = path.dirname(__dirname); // one level up from src
+
 const mkdirpSync = function (dirParts) {
     for (let i = 1; i <= dirParts.length; i++) {
         var dir = path.join.apply(null, dirParts.slice(0, i));
@@ -39,7 +41,7 @@ function sendIndex(req, res, json = {}) {
   var fullUrl = req.protocol + '://' + host + req.originalUrl;
   var shareUrl = req.protocol + '://' + host + req.path;
   var baseUrl = req.protocol + '://' + host + '/';
-  var filePath = path.join(__dirname,'index.html');
+  var filePath = path.join(rootDir,'index.html');
   if (json.glb) {
     json.model = 'v' + json.glb + '/model.glb';
     if (json.image) {
@@ -74,12 +76,12 @@ function sendIndex(req, res, json = {}) {
 }
 
 app.get('/', function(req, res) {
-  //res.sendFile(path.join(__dirname,'index.html'));
+  //res.sendFile(path.join(rootDir,'index.html'));
   sendIndex(req, res);
 });
 
 app.get('/favicon.ico', function(req, res) {
-  res.sendFile(path.join(__dirname,'assets','favicon.ico'));
+  res.sendFile(path.join(rootDir,'assets','favicon.ico'));
 });
 
 app.get('/index.html', function(req, res) {
@@ -204,12 +206,12 @@ app.get('/v(:hashb64)(.:hindexb64)?', function(req, res) {
   }
   var hash = new Buffer(base64normal(hashb64),"base64").toString('hex');
   console.log('Hash:', hash);
-  var dir = path.join(__dirname,'data',hash.substring(0,2),hash.substring(2,4),hash.substring(4));
+  var dir = path.join(rootDir,'data',hash.substring(0,2),hash.substring(2,4),hash.substring(4));
   if (!fs.existsSync(dir)) {
     res.status(404).send('Not found');
     return;
   }
-  //res.sendFile(path.join(__dirname,'index.html'));
+  //res.sendFile(path.join(rootDir,'index.html'));
   if (hindexb64 === undefined) {
     json = { glb: hashb64 };
     sendIndex(req, res, json);
@@ -236,7 +238,7 @@ app.get('/v:hashb64/model.glb', function(req, res) {
         return;
     }
     var hash = new Buffer(base64normal(hashb64),"base64").toString('hex');
-    var dir = path.join(__dirname,'data',hash.substring(0,2),hash.substring(2,4),hash.substring(4));
+    var dir = path.join(rootDir,'data',hash.substring(0,2),hash.substring(2,4),hash.substring(4));
     if (!fs.existsSync(dir)) {
         res.status(404).send('Not found');
         return;
@@ -260,7 +262,7 @@ app.get('/v:hashb64/:hindexb64.json', function(req, res) {
     var hash = new Buffer(base64normal(hashb64),"base64").toString('hex');
     var hindex = new Buffer(base64normal(hindexb64),"base64").toString('hex');
 
-    var dir = path.join(__dirname,'data',hash.substring(0,2),hash.substring(2,4),hash.substring(4));
+    var dir = path.join(rootDir,'data',hash.substring(0,2),hash.substring(2,4),hash.substring(4));
     var file = path.join(dir,hindex+'.json');
     if (!fs.existsSync(file)) {
         res.status(404).send('Not found');
@@ -280,7 +282,7 @@ app.get('/v:hashb64/:himageb64.png', function(req, res) {
     var hash = new Buffer(base64normal(hashb64),"base64").toString('hex');
     var himage = new Buffer(base64normal(himageb64),"base64").toString('hex');
 
-    var dir = path.join(__dirname,'data',hash.substring(0,2),hash.substring(2,4),hash.substring(4));
+    var dir = path.join(rootDir,'data',hash.substring(0,2),hash.substring(2,4),hash.substring(4));
     var file = path.join(dir,himage+'.png');
     if (!fs.existsSync(file)) {
         res.status(404).send('Not found');
@@ -290,7 +292,7 @@ app.get('/v:hashb64/:himageb64.png', function(req, res) {
     res.sendFile(file);
 });
 
-app.use(express.static(__dirname, {dotfiles: "deny"}));
+app.use(express.static(rootDir, {dotfiles: "deny"}));
 
 app.use(function (err, req, res, next) {
     console.error(err.stack);

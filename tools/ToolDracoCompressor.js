@@ -1,4 +1,4 @@
-const DracoEncoderModule = require('./lib/draco/draco_encoder')();
+const DracoEncoderModule = require('../lib/draco/draco_encoder')();
 
 class ToolDracoCompressor {
 

@@ -160,7 +160,6 @@ module.exports = class Viewer {
     return new Promise((resolve, reject) => {
 
       const manager = new THREE.LoadingManager();
-      loader.setDRACOLoader( new THREE.DRACOLoader( 'lib/draco/', {type: 'js'} ) );
 
       // Intercept and override relative URLs.
       manager.setURLModifier((url, path) => {
@@ -182,6 +181,9 @@ module.exports = class Viewer {
 
       const loader = new THREE.GLTFLoader(manager);
       loader.setCrossOrigin('anonymous');
+
+      loader.setDRACOLoader( new THREE.DRACOLoader( 'lib/draco/', {type: 'js'} ) );
+
       const blobURLs = [];
 
       loader.load(url, (gltf) => {

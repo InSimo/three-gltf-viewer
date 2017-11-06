@@ -14,8 +14,8 @@ if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('WebGL is not supported in this browser.');
 }
 
-var gltfContent = window.gltfContent = new GLTFContainer();
-var toolManager = window.toolManager = new BaseToolManager(gltfContent);
+const gltfContent = window.gltfContent = new GLTFContainer();
+const toolManager = window.toolManager = new BaseToolManager(gltfContent);
 
 function humanFileSize(size) {
   var i = ( size <= 0 ) ? 0 : Math.min( 4, Math.floor( Math.log(size) / Math.log(1000) ) );
@@ -76,13 +76,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.content) {
       closeBtnEl.style.display = null;
     }
-    if (window.gltfContent.containerData) {
+    if (gltfContent.containerData) {
       downloadBtnEl.style.display = (!params.hasOwnProperty('canSave') || params.canSave) ? null : 'none';
-      if (IS_UPLOAD_SUPPORTED && (!params.hasOwnProperty('canShare') || params.canShare)) {
+      if (window.IS_UPLOAD_SUPPORTED !== undefined && IS_UPLOAD_SUPPORTED && (!params.hasOwnProperty('canShare') || params.canShare)) {
         shareBtnEl.style.display = null;
         var text = '';
-        if (window.gltfContent.containerData.size > 0) {
-          text = '(' + humanFileSize(window.gltfContent.containerData.size) + ')';
+        if (gltfContent.containerData.byteLength > 0) {
+          text = '(' + humanFileSize(gltfContent.containerData.byteLength) + ')';
         }
         shareBtnEl.lastElementChild.innerHTML = text;
       }
@@ -101,16 +101,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const downloadBtnEl = document.querySelector('#download-btn');
   downloadBtnEl.addEventListener('click', function () {
-    if (window.gltfContent.containerData) {
-      var glbBlob = new Blob([window.gltfContent.containerData], { type: window.gltfContent.info.container.mimetype || 'model/gltf-binary' });
-      FileSaver.saveAs(glbBlob, (window.gltfContent.name||'output')+'.'+(window.gltfContent.info.container.fileextension||'glb'));
+    if (gltfContent.containerData) {
+      var glbBlob = new Blob([gltfContent.containerData], { type: gltfContent.info.container.mimetype || 'model/gltf-binary' });
+      FileSaver.saveAs(glbBlob, (gltfContent.name||'output')+'.'+(gltfContent.info.container.fileextension||'glb'));
     }
   });
   const closeBtnEl = document.querySelector('#close-btn');
   closeBtnEl.addEventListener('click', function () {
     if (!viewer) return;
     viewer.clear();
-    window.gltfContent.clear();
+    gltfContent.clear();
     if (panelCheckBox) {
       panelCheckBox.checked = false;
     }
@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
   shareBtnEl.addEventListener('click', function () {
   viewer.renderImage(512,512,function(imageBlob) {
     var formData = new FormData();
-    var glbBlob = new Blob([window.gltfContent.containerData], { type: window.gltfContent.info.container.mimetype || 'model/gltf-binary' });
+    var glbBlob = new Blob([gltfContent.containerData], { type: gltfContent.info.container.mimetype || 'model/gltf-binary' });
     var viewState = viewer.getState();
     //viewState.name = rootName;
     var viewBlob = new Blob([JSON.stringify(viewState)], {type: 'application/json'});
@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         panelContentElement.appendChild(resEl);
       }
     }
-    viewer.updateGUISceneInformation(window.gltfContent.info);
+    viewer.updateGUISceneInformation(gltfContent.info);
     updateButtons();
   }
 
@@ -272,12 +272,12 @@ document.addEventListener('DOMContentLoaded', () => {
       document.title = rootName == '' ? 'glTF Viewer' : rootName + ' - glTF';
       if (previewEl) // hide preview
         previewEl.style.display = 'none';
-      return window.gltfContent.load(fileOriginalURL, rootName, rootFilePath, containerFile, fileMap)
-        .then(() => window.gltfContent.getCredits())
+      return gltfContent.load(fileOriginalURL, rootName, rootFilePath, containerFile, fileMap)
+        .then(() => gltfContent.getCredits())
         .then((result) => {
           onToolDone({tool:{title:rootName.replace(/_/,' ')}, result:result});
           //updateButtons(params);
-          //viewer.updateGUISceneInformation(window.gltfContent.info)
+          //viewer.updateGUISceneInformation(gltfContent.info)
         });
     };
 
@@ -288,8 +288,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
 
+    const rootPath = rootFilePath.lastIndexOf('/') == -1 ? '': rootFilePath.slice(0, rootFilePath.lastIndexOf('/'));
+
     spinnerEl.style.display = '';
-    viewer.load(rootName, fileURL, rootFilePath, fileMap, params.view || {})
+    viewer.load(fileURL, rootPath, fileMap, params.view || {})
       .then(postLoad)
       .then(cleanup)
       .catch((error) => {

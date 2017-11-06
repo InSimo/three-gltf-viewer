@@ -4,9 +4,7 @@ const THREE = window.THREE = require('three');
 const Stats = require('./lib/stats.min.js');
 const environments = require('./assets/environment/index');
 const createVignetteBackground = require('three-vignette-background');
-const SceneInformation = require('./SceneInformation');
 
-//require('./lib/draco/draco_decoder');
 require('./lib/draco/DRACOLoader');
 require('./lib/GLTFLoader');
 require('./lib/OrbitControls');
@@ -109,14 +107,13 @@ module.exports = class Viewer {
 
   }
 
-  render (getImage = false) {
+  render () {
+
     this.renderer.render( this.scene, this.activeCamera );
-    if (getImage) {
-      return this.renderer.domElement.toDataURL();
-    }
+
   }
 
-  renderImage (w,h,cb) {
+  renderImage ( w, h, cb ) {
     // set the image size
     const clientHeight = w, clientWidth = h;
     this.renderer.setPixelRatio( 1.0 );
@@ -126,7 +123,6 @@ module.exports = class Viewer {
     this.renderer.setSize(clientWidth, clientHeight);
     // remove vignette background
     this.scene.remove(this.background);
-
     // render the image
     this.renderer.render( this.scene, this.activeCamera );
     // immediatly capture image (this way preserveDrawingBuffer should not be required)
@@ -155,31 +151,19 @@ module.exports = class Viewer {
     }
   }
 
-  load ( rootName, url, rootFilePath, assetMap, initState = {} ) {
+  load ( url, rootPath, assetMap, initState = {} ) {
 
     return new Promise((resolve, reject) => {
-
-      const loadedURLs = new Map();
-
-      const manager = new THREE.LoadingManager((url) => {
-        loadedURLs.set(url, { status: 'Started' });
-      }, (url) => {
-        loadedURLs[url].status = 'OK';
-      }, (url) => {
-        loadedURLs[url].status = 'Error';
-      });
 
       const loader = new THREE.GLTFLoader();
       loader.setDRACOLoader( new THREE.DRACOLoader( 'lib/draco/', {type: 'js'} ) );
       loader.setCrossOrigin('anonymous');
       const blobURLs = [];
-      //const rootPath = rootFilePath.split('/').splice(0,1).join('/');
-      const rootPath = rootFilePath.lastIndexOf('/') == -1 ? '': rootFilePath.slice(0, rootFilePath.lastIndexOf('/'));
+
       // Hack to intercept relative URLs.
       window.gltfPathTransform = (url, path) => {
 
         const normalizedURL = rootPath + url.replace(/^(\.?\/)/, '');
-        console.log("url="+url+" path="+path+" rootPath="+rootPath+" => "+normalizedURL);
         if (assetMap.has(normalizedURL)) {
           const blob = assetMap.get(normalizedURL);
           const blobURL = URL.createObjectURL(blob);
@@ -195,8 +179,7 @@ module.exports = class Viewer {
 
         const scene = gltf.scene || gltf.scenes[0];
         const clips = gltf.animations || [];
-        const contentBinary = gltf.binaryBlob;
-        this.setContent(gltfContent, scene, clips, gltf.json, contentBinary, assetMap, initState);
+        this.setContent(scene, clips, initState);
 
         blobURLs.forEach(URL.revokeObjectURL);
 
@@ -211,9 +194,9 @@ module.exports = class Viewer {
   /**
    * @param {THREE.Object3D} object
    * @param {Array<THREE.AnimationClip} clips
-   * @param {Blob} contentBinary
+   * @param {Object} initState
    */
-  setContent (gltfContent, object, clips, contentGLTF, contentBinary, assetMap, initState = {} ) {
+  setContent ( object, clips, initState = {} ) {
 
     this.clear();
 
@@ -243,9 +226,6 @@ module.exports = class Viewer {
     object.name = 'glTF';
     this.scene.add(object);
     this.content = object;
-    this.contentGLTF = contentGLTF;
-    this.contentBinary = contentBinary;
-    this.contentFiles = assetMap;
 
     this.state.addLights = true;
     this.content.traverse((node) => {
@@ -256,7 +236,6 @@ module.exports = class Viewer {
 
     this.setClips(clips);
 
-    console.log(initState);
     for (var a of Object.keys(initState)) {
       if (this.state.hasOwnProperty(a)) {
         console.log('Setting view ',a,' to ',initState[a]);
@@ -279,7 +258,7 @@ module.exports = class Viewer {
 
     window.content = this.content;
 
-    console.info('[glTF Viewer] THREE.Scene exported as `window.content`');
+    console.info('[glTF Viewer] THREE.Scene exported as `window.content`.');
     this.printGraph(this.content);
 
   }

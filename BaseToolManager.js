@@ -10,6 +10,7 @@ module.exports = class BaseToolManager extends EventEmitter {
 
   setupGUI (toolsMenuElement) {
     this.toolsMenuElement = toolsMenuElement;
+    this.toolsMenuElementChild0 = toolsMenuElement.children[0];
     for (let tool of this.tools) {
       addToolButton(tool);
     }
@@ -42,7 +43,7 @@ module.exports = class BaseToolManager extends EventEmitter {
         nextTool = t;
       }
     }
-    var nextEl = (nextTool !== undefined) ? nextTool.buttonElement : this.toolsMenuElement.children[0];
+    var nextEl = (nextTool !== undefined) ? nextTool.buttonElement : this.toolsMenuElementChild0;
     var button = document.createElement("button");
     button.setAttribute('class','item');
     button.innerHTML = '<span class="icon">'+tool.icon+'</span>&nbsp;&nbsp;'+tool.name+'</button>';

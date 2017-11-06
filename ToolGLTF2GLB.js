@@ -8,7 +8,7 @@ class ToolGLTF2GLB {
   constructor () {
     this.name = 'glTF ➔ glb';
     this.icon = '▶';
-    this.order = 2;
+    this.order = 20;
   }
 
   run ( gltfContent ) {

@@ -521,4 +521,158 @@ module.exports = class GLTFContainer {
     this.gltf.bufferViews.push({buffer: bufferId, byteOffset: offset, byteLength: size});
     return id;
   }
+
+  helperVisitJsonObjects(json, functor) {
+    const visitor = (x) => {
+      if (Array.isArray(x)) {
+        x.forEach(visitor);
+      } else if (x instanceof Object) {
+        functor(x);
+        Object.values(x).forEach(visitor);
+      } else { // final value, ignore
+      }
+    };
+    visitor(json);
+  }
+
+  removeUnusedBufferViews(bufferViewsToRemoveArray) {
+    console.log(bufferViewsToRemoveArray);
+    if (!this.gltf.bufferViews) return; // no bufferViews -> nothing to do
+    // count the number of reference for each bufferView ID
+    var bufferViews = this.gltf.bufferViews;
+    var bufferViewsRefs = new Array(bufferViews.length).fill(0);
+    this.helperVisitJsonObjects(this.gltf, (x) => {
+      if ('bufferView' in x) {
+        var bufferViewId = x['bufferView'];
+        if (bufferViewId >= 0 && bufferViewId < bufferViews.length) { // valid Id
+          ++bufferViewsRefs[bufferViewId];
+        } else {
+          console.error('Invalid bufferView reference ' + bufferViewId);
+        }
+      }
+    });
+    console.log(bufferViewsRefs);
+    // only remove bufferViews without any reference
+    // also store a set of candidate buffer ids to remove
+    var buffersToRemoveSet = new Set();
+    bufferViewsToRemoveArray = bufferViewsToRemoveArray.filter((id) => !bufferViewsRefs[id]);
+    if (bufferViewsToRemoveArray.length == 0) return; // no unused bufferView
+    var bufferViewsToRemoveSet = new Set(bufferViewsToRemoveArray);
+    var bufferViewsNewIds = new Array(bufferViews.length).fill(-1);
+    var newBufferViews = [];
+    for (let i = 0; i < bufferViews.length; ++i) {
+      if (bufferViewsToRemoveSet.has(i)) { // remove this bufferView
+        if ('buffer' in bufferViews[i]) {
+          buffersToRemoveSet.add(bufferViews[i].buffer);
+        }
+      } else { // preserve this bufferView
+        bufferViewsNewIds[i] = newBufferViews.length;
+        newBufferViews.push(bufferViews[i]);
+      }
+    }
+    console.log(bufferViewsNewIds);
+    // convert all existing references to the new (compacted) bufferView ids
+    this.helperVisitJsonObjects(this.gltf, (x) => {
+      if ('bufferView' in x) {
+        var bufferViewId = x['bufferView'];
+        if (bufferViewId >= 0 && bufferViewId < bufferViews.length) { // valid Id
+          x['bufferView'] = bufferViewsNewIds[bufferViewId];
+        } else {
+          console.error('Invalid bufferView reference ' + bufferViewId);
+        }
+      }
+    });
+    // now we can replace the old bufferViews array with the new one
+    this.gltf.bufferViews = newBufferViews;
+    console.log('Removed ' + bufferViewsToRemoveArray.length + ' bufferView(s)');
+    if (buffersToRemoveSet.size > 0) {
+      var buffersToRemoveArray = Array.from(buffersToRemoveSet);
+      this.removeUnusedBuffers(buffersToRemoveArray);
+    }
+  }
+
+  removeUnusedBuffers(buffersToRemoveArray) {
+    console.log(buffersToRemoveArray);
+    if (!this.gltf.buffers) return; // no buffers -> nothing to do
+    // count the number of reference for each buffer ID
+    var buffers = this.gltf.buffers;
+    var buffersRefs = new Array(buffers.length).fill(0);
+    this.helperVisitJsonObjects(this.gltf, (x) => {
+      if ('buffer' in x) {
+        var bufferId = x['buffer'];
+        if (bufferId >= 0 && bufferId < buffers.length) { // valid Id
+          ++buffersRefs[bufferId];
+        } else {
+          console.error('Invalid buffer reference ' + bufferId);
+        }
+      }
+    });
+    console.log(buffersRefs);
+    // only remove buffers without any reference
+    // also store a set of candidate file uris to remove
+    var filesToRemoveSet = new Set();
+    buffersToRemoveArray = buffersToRemoveArray.filter((id) => !buffersRefs[id]);
+    if (buffersToRemoveArray.length == 0) return; // no unused buffer
+    var buffersToRemoveSet = new Set(buffersToRemoveArray);
+    var buffersNewIds = new Array(buffers.length).fill(-1);
+    var newBuffers = [];
+    for (let i = 0; i < buffers.length; ++i) {
+      if (buffersToRemoveSet.has(i)) { // remove this buffer
+        if ('uri' in buffers[i]) {
+          filesToRemoveSet.add(this.resolveURL(buffers[i].uri));
+        }
+      } else { // preserve this buffer
+        buffersNewIds[i] = newBuffers.length;
+        newBuffers.push(buffers[i]);
+      }
+    }
+    console.log(buffersNewIds);
+    // convert all existing references to the new (compacted) buffer ids
+    this.helperVisitJsonObjects(this.gltf, (x) => {
+      if ('buffer' in x) {
+        var bufferId = x['buffer'];
+        if (bufferId >= 0 && bufferId < buffers.length) { // valid Id
+          x['buffer'] = buffersNewIds[bufferId];
+        } else {
+          console.error('Invalid buffer reference ' + bufferId);
+        }
+      }
+    });
+    // now we can replace the old buffers array with the new one
+    this.gltf.buffers = newBuffers;
+    console.log('Removed ' + buffersToRemoveArray.length + ' buffer(s)');
+    if (filesToRemoveSet.size > 0) {
+      var filesToRemoveArray = Array.from(filesToRemoveSet);
+      this.removeUnusedFiles(filesToRemoveArray);
+    }
+  }
+
+  removeUnusedFiles(filesToRemoveArray) {
+    console.log(filesToRemoveArray);
+    var filesToRemoveSet = new Set(filesToRemoveArray);
+    // remove any uri that still exists in the json
+    this.helperVisitJsonObjects(this.gltf, (x) => {
+      if ('uri' in x) {
+        var fileId = this.resolveURL(x['url']);
+        if (filesToRemoveSet.has(fileId)) {
+          console.log('File ' + fileId + ' is still referenced.');
+          filesToRemoveSet.delete(fileId)
+        }
+      }
+    });
+    // all files in filesToRemoveArray are no longer referenced anywhere
+    // they are safe to delete from our stored files
+    var count = 0;
+    filesToRemoveSet.forEach((fileId) => {
+      if (this.files.has(fileId)) {
+        this.files.delete(fileId);
+        ++count;
+        console.log('File ' + fileId + ' removed');
+      } else {
+        console.log('File ' + fileId + ' is not removed as it is not stored');
+      }
+    });
+    console.log('Removed ' + count + ' file(s)');
+  }
+
 }

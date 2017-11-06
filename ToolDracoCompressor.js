@@ -9,6 +9,19 @@ class ToolDracoCompressor {
   }
 
   run (gltfContent) {
+
+    // compression options
+    // TODO: add GUI to control them
+    const options = {
+      pos_quantization_bits: 14,
+      tex_coords_quantization_bits: 12,
+      normals_quantization_bits: 10,
+      colors_quantization_bits: 10,
+      generic_quantization_bits: 8,
+      compression_level: 7
+    };
+
+
     return new Promise( function(resolve, reject) {
     console.time( 'DracoCompressor' );
     var gltf = gltfContent.gltf;
@@ -18,6 +31,7 @@ class ToolDracoCompressor {
     var totalInputSize = 0;
     var totalOutputSize = 0;
     var totalTime = 0;
+    var bufferViewsToRemoveSet = new Set();
     for (var j = 0; j < gltf.meshes.length; ++j) {
       for (var k = 0; k < gltf.meshes[j].primitives.length; ++k) { 
         var res = result.meshes[j + '_' + (gltf.meshes[j].name || 'mesh') + '_' + k] = {};
@@ -92,8 +106,20 @@ class ToolDracoCompressor {
           encoder.SetEncodingMethod(DracoEncoderModule.MESH_SEQUENTIAL_ENCODING);
         }
         */
-        encoder.SetSpeedOptions(3,3);
-        // Use default encoding setting.
+        const speed = 10 - options.compression_level;
+
+        encoder.SetAttributeQuantization(DracoEncoderModule.POSITION, options.pos_quantization_bits);
+        encoder.SetAttributeQuantization(DracoEncoderModule.TEX_COORD, options.tex_coords_quantization_bits);
+        encoder.SetAttributeQuantization(DracoEncoderModule.NORMAL, options.normals_quantization_bit);
+        encoder.SetAttributeQuantization(DracoEncoderModule.COLOR, options.colors_quantization_bit);
+        encoder.SetAttributeQuantization(DracoEncoderModule.GENERIC, options.generic_quantization_bits);
+
+        encoder.SetSpeedOptions(speed, speed);
+
+        console.log(dracoMesh);
+        console.log(meshBuilder);
+        console.log(encoder);
+
         const encodedLen = encoder.EncodeMeshToDracoBuffer(dracoMesh, encodedData);
         DracoEncoderModule.destroy(dracoMesh);
         DracoEncoderModule.destroy(encoder);
@@ -128,6 +154,7 @@ class ToolDracoCompressor {
         for(var [key, value] of Object.entries(primitive.attributes)
             .concat([['', primitive.indices]])) {
           var accessor = gltf.accessors[value];
+          bufferViewsToRemoveSet.add(accessor.bufferView);
           delete accessor.bufferView;
           if (accessor.byteOffset)
             delete accessor.byteOffset;
@@ -160,6 +187,13 @@ class ToolDracoCompressor {
     if (gltf.extensionsUsed.indexOf("KHR_draco_mesh_compression") == -1) {
       gltf.extensionsUsed.push("KHR_draco_mesh_compression");
     }
+
+    if (bufferViewsToRemoveSet) {
+      var bufferViewsToRemoveArray = Array.from(bufferViewsToRemoveSet.values());
+      gltfContent.removeUnusedBufferViews(bufferViewsToRemoveArray);
+    }
+
+    // invalidate existing container
     gltfContent.containerData = undefined;
     gltfContent.updateSceneInformation();
 

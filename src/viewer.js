@@ -117,7 +117,7 @@ module.exports = class Viewer {
 
   renderImage ( w, h, cb ) {
     // set the image size
-    const clientHeight = w, clientWidth = h;
+    const clientHeight = h, clientWidth = w;
     this.renderer.setPixelRatio( 1.0 );
     this.defaultCamera.aspect = clientWidth / clientHeight;
     this.defaultCamera.updateProjectionMatrix();

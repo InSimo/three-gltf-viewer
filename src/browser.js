@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   const shareBtnEl = document.querySelector('#share-btn');
   shareBtnEl.addEventListener('click', function () {
-  viewer.renderImage(512,512,function(imageBlob) {
+  viewer.renderImage(1024,512,function(imageBlob) {
     var formData = new FormData();
     var glbBlob = new Blob([gltfContent.containerData], { type: gltfContent.info.container.mimetype || 'model/gltf-binary' });
     var viewState = viewer.getState();

@@ -70,7 +70,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   let kioskCheckBox = document.querySelector('.kiosk-checkbox');
-  kioskCheckBox.addEventListener( 'change', scheduleResize );
+  kioskCheckBox.addEventListener( 'change', function() {
+    // also disable the panel if going to kiosk mode
+    if(this.checked && panelCheckBox !== undefined) {
+      panelCheckBox.checked = false;
+    }
+    scheduleResize();
+  });
 
   function updateButtons ( params = {} ) {
     if (window.content) {
@@ -174,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function onToolDone ({tool, result}) {
     spinnerEl.style.display = 'none';
-    if (panelCheckBox !== undefined) {
+    if (panelCheckBox !== undefined && !kioskCheckBox.checked) {
       panelCheckBox.checked = true;
     }
     if (panelContentElement !== undefined) {

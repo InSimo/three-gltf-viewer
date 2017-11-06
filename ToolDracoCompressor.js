@@ -89,8 +89,14 @@ class ToolDracoCompressor {
           var attrArray = gltfContent.getAccessorArrayBuffer(value);
           inputSize += attrArray.byteLength;
 
+          var typeCount = gltfContent.getTypeCount(gltf.accessors[value].type);
+
           var id = meshBuilder.AddFloatAttributeToMesh(
-            dracoMesh, encoderType, attrArray.length, gltfContent.getTypeCount(gltf.accessors[value].type), attrArray);
+            dracoMesh, encoderType, attrArray.length / typeCount, typeCount, attrArray);
+          if (id == -1) {
+            console.log(gltf.accessors[value]);
+            throw new Error('DRACO MeshBuilder AddFloatAttributeToMesh() failed for attribute ' + key);
+          }
           compressedAttributes[key] = id;
         }
         // console.timeEnd( 'DracoCompressorAttribute' );

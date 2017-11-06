@@ -221,13 +221,36 @@ document.addEventListener('DOMContentLoaded', () => {
   const dropEl = document.querySelector('.dropzone');
   const dropCtrl = new DropController(dropEl);
 
-  dropCtrl.on('drop', ({containerFile, rootFile, rootFilePath, fileMap}) => view(containerFile, rootFile, rootFilePath, fileMap));
+  dropCtrl.on('drop', ({containerFile, fileMap}) => view(containerFile, fileMap));
   dropCtrl.on('dropstart', () => (spinnerEl.style.display = ''));
   dropCtrl.on('droperror', () => (spinnerEl.style.display = 'none'));
 
   const previewEl = document.querySelector('.preview');
 
-  function view (containerFile, rootFile, rootFilePath, fileMap, params = {}) {
+  function view (containerFile, fileMap, params = {}) {
+
+    let rootFile;
+    let rootFilePath;
+    if (fileMap.size === 0) {
+      rootFile = containerFile;
+      rootFilePath = '';
+    } else {
+      const RE_GLTF = /\.(gltf|glb)$/;
+      fileMap.forEach((file, path) => {
+        if (file.name.match(RE_GLTF)) {
+          rootFile = file;
+          rootFilePath = path; //.replace(file.name, '');
+        }
+      });
+    }
+
+    if (!rootFile) {
+      var error = 'No .gltf or .glb asset found.';
+      console.error(error);
+      onToolError({tool:{title:''}, error:error });
+      return;
+    }
+
     console.log(containerFile);
     console.log(rootFile);
     console.log(rootFilePath);
@@ -294,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
 
-    const rootPath = rootFilePath.lastIndexOf('/') == -1 ? '': rootFilePath.slice(0, rootFilePath.lastIndexOf('/'));
+    const rootPath = rootFilePath.slice(0, rootFilePath.length - rootFilePath.split('/').pop().length); //rootFilePath.slice(0, rootFilePath.lastIndexOf('/'));
 
     spinnerEl.style.display = '';
     viewer.load(fileURL, rootPath, fileMap, params.view || {})
@@ -304,7 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (error && error.target && error.target instanceof Image) {
           error = 'Missing texture: ' + error.target.src.split('/').pop();
         }
-        window.alert((error||{}).message || error);
+        //window.alert((error||{}).message || error);
         console.error(error);
         onToolError({tool:{title:rootName}, error:((error||{}).message || error)});
         cleanup();
@@ -318,7 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   if (hash.model) {
-    view(hash.model, hash.model, '', new Map(), window.loadIndex || {});
+    view(hash.model, new Map(), window.loadIndex || {});
   }
 
 });

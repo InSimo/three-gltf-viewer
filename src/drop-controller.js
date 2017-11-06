@@ -3,8 +3,6 @@ const zip = window.zip = require('zipjs-browserify');
 
 require('../lib/zip-fs');
 
-const RE_GLTF = /\.(gltf|glb)$/;
-
 /**
  * Watches an element for file drops, parses to create a filemap hierarchy,
  * and emits the result.
@@ -36,13 +34,16 @@ class DropController extends EventEmitter {
     if (e.dataTransfer.items) {
       entries = [].slice.call(e.dataTransfer.items)
         .map((item) => item.webkitGetAsEntry());
-    } else if ((e.dataTransfer.files||[]).length === 1) {
-      const file = e.dataTransfer.files[0];
-      if (file.type === 'application/zip') {
-        this.loadZip(file);
+    } else if ((e.dataTransfer.files||[]).length >= 1) {
+      const files = [].slice.call(e.dataTransfer.files);
+      // support for zip archive
+      if (files.length === 1 && files[0].type === 'application/zip') {
+        this.loadZip(files[0]);
         return;
-      } else if (file.name.match(RE_GLTF)) {
-        this.emitResult(new Map([[file.name, file]]));
+      } else {
+        const fileMap = new Map();
+        files.forEach((file) => fileMap.set(file.name, file));
+        this.emitResult(fileMap);
         return;
       }
     }
@@ -161,23 +162,8 @@ class DropController extends EventEmitter {
    * @param {Map<string, File>} fileMap
    */
   emitResult (fileMap, containerFile = undefined) {
-    let rootFile;
-    let rootFilePath;
-    fileMap.forEach((file, path) => {
-      if (file.name.match(RE_GLTF)) {
-        rootFile = file;
-        rootFilePath = path; //.replace(file.name, '');
-      }
-    });
-
-    if (!rootFile) {
-      this.fail('No .gltf or .glb asset found.');
-    }
-
     this.emit('drop', {
-      containerFile: containerFile || rootFile,
-      rootFile: rootFile,
-      rootFilePath: rootFilePath,
+      containerFile: containerFile,
       fileMap: fileMap
     });
   }

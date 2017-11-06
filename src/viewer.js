@@ -1,13 +1,13 @@
 /* global dat */
 
 const THREE = window.THREE = require('three');
-const Stats = require('./lib/stats.min.js');
-const environments = require('./assets/environment/index');
+const Stats = require('../lib/stats.min.js');
+const environments = require('../assets/environment/index');
 const createVignetteBackground = require('three-vignette-background');
 
-require('./lib/draco/DRACOLoader');
-require('./lib/GLTFLoader');
-require('./lib/OrbitControls');
+require('../lib/draco/DRACOLoader');
+require('../lib/GLTFLoader');
+require('../lib/OrbitControls');
 
 const DEFAULT_CAMERA = '[default]';
 
@@ -31,6 +31,7 @@ module.exports = class Viewer {
       actionStates: {},
       camera: DEFAULT_CAMERA,
       wireframe: false,
+      skeleton: false,
 
       // Lights
       addLights: true,
@@ -81,6 +82,7 @@ module.exports = class Viewer {
     this.animCtrls = [];
     this.morphFolder = null;
     this.morphCtrls = [];
+    this.skeletonHelpers = [];
 
     this.addGUI();
     if (options.kiosk) this.gui.close();
@@ -153,17 +155,20 @@ module.exports = class Viewer {
 
   load ( url, rootPath, assetMap, initState = {} ) {
 
+    const baseURL = THREE.Loader.prototype.extractUrlBase(url);
+
     return new Promise((resolve, reject) => {
 
-      const loader = new THREE.GLTFLoader();
+      const manager = new THREE.LoadingManager();
       loader.setDRACOLoader( new THREE.DRACOLoader( 'lib/draco/', {type: 'js'} ) );
-      loader.setCrossOrigin('anonymous');
-      const blobURLs = [];
 
-      // Hack to intercept relative URLs.
-      window.gltfPathTransform = (url, path) => {
+      // Intercept and override relative URLs.
+      manager.setURLModifier((url, path) => {
 
-        const normalizedURL = rootPath + url.replace(/^(\.?\/)/, '');
+        const normalizedURL = rootPath + url
+          .replace(baseURL, '')
+          .replace(/^(\.?\/)/, '');
+
         if (assetMap.has(normalizedURL)) {
           const blob = assetMap.get(normalizedURL);
           const blobURL = URL.createObjectURL(blob);
@@ -173,7 +178,11 @@ module.exports = class Viewer {
 
         return (path || '') + url;
 
-      };
+      });
+
+      const loader = new THREE.GLTFLoader(manager);
+      loader.setCrossOrigin('anonymous');
+      const blobURLs = [];
 
       loader.load(url, (gltf) => {
 
@@ -404,9 +413,19 @@ module.exports = class Viewer {
   }
 
   updateDisplay () {
+    if (this.skeletonHelpers.length) {
+      this.skeletonHelpers.forEach((helper) => this.scene.remove(helper));
+    }
+
     this.content.traverse((node) => {
       if (node.isMesh) {
         node.material.wireframe = this.state.wireframe;
+      }
+      if (node.isMesh && node.skeleton && this.state.skeleton) {
+        const helper = new THREE.SkeletonHelper(node.skeleton.bones[0].parent);
+        helper.material.linewidth = 3;
+        this.scene.add(helper);
+        this.skeletonHelpers.push(helper);
       }
     });
   }
@@ -423,7 +442,10 @@ module.exports = class Viewer {
     this.envBackgroundCtrl.onChange(() => this.updateEnvironment());
     const wireframeCtrl = dispFolder.add(this.state, 'wireframe').listen();
     wireframeCtrl.onChange(() => this.updateDisplay());
+    const skeletonCtrl = dispFolder.add(this.state, 'skeleton').listen();
+    skeletonCtrl.onChange(() => this.updateDisplay());
     dispFolder.add(this.controls, 'autoRotate').listen();
+
 
     // Lighting controls.
     const lightFolder = gui.addFolder('Lights');
@@ -539,7 +561,7 @@ module.exports = class Viewer {
         ctrl.onChange((playAnimation) => {
           action = action || this.mixer.clipAction(clip);
           action.setEffectiveTimeScale(1);
-          playAnimation ? action.play() : action.halt();
+          playAnimation ? action.play() : action.stop();
         });
         this.animCtrls.push(ctrl);
       });

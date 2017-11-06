@@ -30,6 +30,7 @@ module.exports = class GLTFContainer {
     this.gltf = {};
     this.glbBody = undefined;
     this.containerData = undefined;
+    this.containerFileUri = undefined;
     this.info = new SceneInformation();
   }
 

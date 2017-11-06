@@ -116,10 +116,6 @@ class ToolDracoCompressor {
 
         encoder.SetSpeedOptions(speed, speed);
 
-        console.log(dracoMesh);
-        console.log(meshBuilder);
-        console.log(encoder);
-
         const encodedLen = encoder.EncodeMeshToDracoBuffer(dracoMesh, encodedData);
         DracoEncoderModule.destroy(dracoMesh);
         DracoEncoderModule.destroy(encoder);

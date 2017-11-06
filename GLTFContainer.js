@@ -481,8 +481,6 @@ module.exports = class GLTFContainer {
     var typeCount = this.getTypeCount(accessor.type);
     var elementSize = componentTypeArray.BYTES_PER_ELEMENT*typeCount;
     var bufferArray = this.getBufferArrayBuffer(bufferView.buffer);
-    // var bufferArray = this.glbBody;
-    // console.log(bufferArray);
     if (bufferView.hasOwnProperty('byteStride')) {
       stride = bufferView.byteStride;
     }
@@ -506,7 +504,6 @@ module.exports = class GLTFContainer {
         }
       }
     }
-    // console.log(buffer);
     return buffer;
   }
 
@@ -537,7 +534,6 @@ module.exports = class GLTFContainer {
   }
 
   removeUnusedBufferViews(bufferViewsToRemoveArray) {
-    console.log(bufferViewsToRemoveArray);
     if (!this.gltf.bufferViews) return; // no bufferViews -> nothing to do
     // count the number of reference for each bufferView ID
     var bufferViews = this.gltf.bufferViews;
@@ -552,7 +548,6 @@ module.exports = class GLTFContainer {
         }
       }
     });
-    console.log(bufferViewsRefs);
     // only remove bufferViews without any reference
     // also store a set of candidate buffer ids to remove
     var buffersToRemoveSet = new Set();
@@ -571,7 +566,6 @@ module.exports = class GLTFContainer {
         newBufferViews.push(bufferViews[i]);
       }
     }
-    console.log(bufferViewsNewIds);
     // convert all existing references to the new (compacted) bufferView ids
     this.helperVisitJsonObjects(this.gltf, (x) => {
       if ('bufferView' in x) {
@@ -593,7 +587,6 @@ module.exports = class GLTFContainer {
   }
 
   removeUnusedBuffers(buffersToRemoveArray) {
-    console.log(buffersToRemoveArray);
     if (!this.gltf.buffers) return; // no buffers -> nothing to do
     // count the number of reference for each buffer ID
     var buffers = this.gltf.buffers;
@@ -608,7 +601,6 @@ module.exports = class GLTFContainer {
         }
       }
     });
-    console.log(buffersRefs);
     // only remove buffers without any reference
     // also store a set of candidate file uris to remove
     var filesToRemoveSet = new Set();
@@ -627,7 +619,6 @@ module.exports = class GLTFContainer {
         newBuffers.push(buffers[i]);
       }
     }
-    console.log(buffersNewIds);
     // convert all existing references to the new (compacted) buffer ids
     this.helperVisitJsonObjects(this.gltf, (x) => {
       if ('buffer' in x) {
@@ -649,7 +640,6 @@ module.exports = class GLTFContainer {
   }
 
   removeUnusedFiles(filesToRemoveArray) {
-    console.log(filesToRemoveArray);
     var filesToRemoveSet = new Set(filesToRemoveArray);
     // remove any uri that still exists in the json
     this.helperVisitJsonObjects(this.gltf, (x) => {
@@ -670,10 +660,9 @@ module.exports = class GLTFContainer {
         ++count;
         console.log('File ' + fileId + ' removed');
       } else {
-        console.log('File ' + fileId + ' is not removed as it is not stored');
+        console.log('File ' + fileId + ' cannot be removed as it is not stored');
       }
     });
     console.log('Removed ' + count + ' file(s)');
   }
-
 }

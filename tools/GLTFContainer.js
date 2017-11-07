@@ -1,4 +1,6 @@
-const crypto = require('crypto');
+// no longer using crypto because it adds too much dependencies, using sha.js directly instead
+//const crypto = require('crypto');
+const Sha224 = require('sha.js/sha224');
 const SceneInformation = require('./SceneInformation');
 const LicensesJson = require('./licenses.json');
 
@@ -225,7 +227,8 @@ module.exports = class GLTFContainer {
   addLicense(licenseString) {
     // remove '=+' and whitespaces to being as independent as possible to changes of formatting
     var text = licenseString.replace(/=+/g, '').replace(/\s+/g, ' ');
-    var hash = crypto.createHash('sha224').update(text).digest('hex');
+    //var hash = crypto.createHash('sha224').update(text).digest('hex');
+    var hash = new Sha224().update(text).digest('hex');
     // Licenses by hash
     const LicensesByHashSha224 = Object.entries(LicensesJson).reduce((r,x) => { if (x[1].hash_sha224 !== undefined) { r[x[1].hash_sha224] = x[0]; } return r; }, {});
     if (hash in LicensesByHashSha224) {

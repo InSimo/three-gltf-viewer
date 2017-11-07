@@ -5,8 +5,6 @@ const Stats = require('../lib/stats.min.js');
 const environments = require('../assets/environment/index');
 const createVignetteBackground = require('three-vignette-background');
 
-require('../lib/draco/DRACOLoader');
-require('../lib/GLTFLoader');
 require('../lib/OrbitControls');
 
 const DEFAULT_CAMERA = '[default]';
@@ -49,7 +47,6 @@ module.exports = class Viewer {
 
     // support for Three.js Inspector chrome extension https://github.com/jeromeetienne/threejs-inspector
     window.scene = this.scene;
-    window.THREE = THREE;
 
     this.defaultCamera = new THREE.PerspectiveCamera( 60, el.clientWidth / el.clientHeight, 0.01, 1000 );
     this.defaultCamera.name = DEFAULT_CAMERA;
@@ -153,53 +150,13 @@ module.exports = class Viewer {
     }
   }
 
-  load ( url, rootPath, assetMap, initState = {} ) {
-
-    const baseURL = THREE.Loader.prototype.extractUrlBase(url);
-
+  loadContent ( content, rootName = '', initState = {} ) {
     return new Promise((resolve, reject) => {
-
-      const manager = new THREE.LoadingManager();
-
-      // Intercept and override relative URLs.
-      manager.setURLModifier((url, path) => {
-
-        const normalizedURL = rootPath + url
-          .replace(baseURL, '')
-          .replace(/^(\.?\/)/, '');
-
-        if (assetMap.has(normalizedURL)) {
-          const blob = assetMap.get(normalizedURL);
-          const blobURL = URL.createObjectURL(blob);
-          blobURLs.push(blobURL);
-          return blobURL;
-        }
-
-        return (path || '') + url;
-
-      });
-
-      const loader = new THREE.GLTFLoader(manager);
-      loader.setCrossOrigin('anonymous');
-
-      loader.setDRACOLoader( new THREE.DRACOLoader( 'lib/draco/', {type: 'js'} ) );
-
-      const blobURLs = [];
-
-      loader.load(url, (gltf) => {
-
-        const scene = gltf.scene || gltf.scenes[0];
-        const clips = gltf.animations || [];
-        this.setContent(scene, clips, initState);
-
-        blobURLs.forEach(URL.revokeObjectURL);
-
-        resolve();
-
-      }, undefined, reject);
-
+      const scene = content.scene || content.scenes[0];
+      const clips = content.animations || [];
+      this.setContent(scene, clips, rootName, initState);
+      resolve(content);
     });
-
   }
 
   /**
@@ -207,7 +164,7 @@ module.exports = class Viewer {
    * @param {Array<THREE.AnimationClip} clips
    * @param {Object} initState
    */
-  setContent ( object, clips, initState = {} ) {
+  setContent ( object, clips, rootName, initState = {} ) {
 
     this.clear();
 
@@ -234,7 +191,7 @@ module.exports = class Viewer {
     this.setCamera(DEFAULT_CAMERA);
 
     this.controls.saveState();
-    object.name = 'glTF';
+    object.name = rootName || 'glTF';
     this.scene.add(object);
     this.content = object;
 

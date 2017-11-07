@@ -1,5 +1,7 @@
 const Detector = require('../lib/Detector');
 const Viewer = require('./viewer');
+const Loader = require('./loader');
+const Exporter = require('./exporter');
 const DropController = require('./drop-controller');
 const GLTFContainer = require('../tools/GLTFContainer');
 const BaseToolManager = require('../tools/BaseToolManager');
@@ -32,6 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let viewer;
   let viewerEl;
+
+  let loader;
+  let exporter;
 
   function scheduleResize() {
     if (viewer) {
@@ -228,24 +233,38 @@ document.addEventListener('DOMContentLoaded', () => {
   const previewEl = document.querySelector('.preview');
 
   function view (containerFile, fileMap, params = {}) {
+    if (!loader) {
+      loader = new Loader();
+    }
+    const fileOriginalURL = typeof containerFile === 'string' ? containerFile :
+      containerFile instanceof File ? containerFile.name : '';
 
     let rootFile;
     let rootFilePath;
+    let rootFileExt;
+    let rootFilePriority = -1;
     if (fileMap.size === 0) {
       rootFile = containerFile;
       rootFilePath = '';
+      var name = fileOriginalURL;
+      var extension = name.lastIndexOf('.') == -1 ? '' : name.slice(name.lastIndexOf('.')+1).toLowerCase();
+      rootFileExt = extension;
     } else {
-      const RE_GLTF = /\.(gltf|glb)$/;
+      //const RE_GLTF = /\.(gltf|glb)$/;
       fileMap.forEach((file, path) => {
-        if (file.name.match(RE_GLTF)) {
+        var name = file.name;
+        var extension = name.lastIndexOf('.') == -1 ? '' : name.slice(name.lastIndexOf('.')+1).toLowerCase();
+        if (extension in loader.loaders && loader.loaders[extension].priority > rootFilePriority) {
           rootFile = file;
-          rootFilePath = path; //.replace(file.name, '');
+          rootFilePath = path;
+          rootFileExt = extension;
+          rootFilePriority = loader.loaders[extension].priority;
         }
       });
     }
 
     if (!rootFile) {
-      var error = 'No .gltf or .glb asset found.';
+      var error = 'No supported asset found.';
       console.error(error);
       onToolError({tool:{title:''}, error:error });
       return;
@@ -254,6 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(containerFile);
     console.log(rootFile);
     console.log(rootFilePath);
+    console.log(rootFileExt);
     console.log(fileMap);
     console.log(params);
     // hide dropzone UI elements (but don't remove them, so Open menu button still works)
@@ -270,8 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
       // show viewer
       viewerEl.style.display = null;
     }
-    const fileOriginalURL = typeof containerFile === 'string' ? containerFile :
-      containerFile instanceof File ? containerFile.name : '';
     const fileURL = typeof rootFile === 'string'
       ? rootFile
       : URL.createObjectURL(rootFile);
@@ -297,17 +315,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     onToolStart({tool:{title:rootName.replace(/_/g,' ')}, message:'Loading...'});
 
-    const postLoad = () => {
+    const postViewerLoad = (content) => {
       document.title = rootName == '' ? 'glTF Viewer' : rootName + ' - glTF';
       if (previewEl) // hide preview
         previewEl.style.display = 'none';
-      return gltfContent.load(fileOriginalURL, rootName, rootFilePath, containerFile, fileMap)
-        .then(() => gltfContent.getCredits())
-        .then((result) => {
-          onToolDone({tool:{title:rootName.replace(/_/,' ')}, result:result});
-          //updateButtons(params);
-          //viewer.updateGUISceneInformation(gltfContent.info)
-        });
+      if (content.gltf) {
+        return gltfContent.load(fileOriginalURL, rootName, rootFilePath, containerFile, fileMap);
+      }
+      else {
+        if (!exporter) {
+          exporter = new Exporter();
+        }
+        return exporter.exportContent(content, 'glb')
+          .then((data) => {
+            return gltfContent.loadSingleFile(fileOriginalURL, rootName, data);
+          });
+      }
+    };
+    const postGLTFLoad = () => {
+      onToolDone({tool:{title:rootName.replace(/_/,' ')}, result:gltfContent.getCredits()});
     };
 
     const cleanup = () => {
@@ -320,8 +346,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const rootPath = rootFilePath.slice(0, rootFilePath.length - rootFilePath.split('/').pop().length); //rootFilePath.slice(0, rootFilePath.lastIndexOf('/'));
 
     spinnerEl.style.display = '';
-    viewer.load(fileURL, rootPath, fileMap, params.view || {})
-      .then(postLoad)
+    loader.load(fileURL, rootPath, fileMap, rootName, rootFileExt || 'gltf')
+      .then((content) => {
+        return viewer.loadContent(content, rootName, params.view || {});
+      })
+      .then(postViewerLoad)
+      .then(postGLTFLoad)
       .then(cleanup)
       .catch((error) => {
         if (error && error.target && error.target instanceof Image) {

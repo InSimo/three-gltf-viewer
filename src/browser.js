@@ -224,7 +224,24 @@ document.addEventListener('DOMContentLoaded', () => {
   toolManager.on('toolerror', onToolError);
 
   const dropEl = document.querySelector('.dropzone');
+  const placeholderEl = document.querySelector('.placeholder');
   const dropCtrl = new DropController(dropEl);
+
+  // Show the list of supported extensions
+  if (placeholderEl) {
+    if (!loader) {
+      loader = new Loader();
+    }
+    var extlist = Array.from(Object.keys(loader.loaders)).filter(x => !loader.loaders[x].gltf);
+    if (extlist) {
+      var text = "Experimental importing of files in ";
+      text += extlist.join(', ');
+      text += ' formats';
+      p = document.createElement('p');
+      p.appendChild(document.createTextNode(text));
+      placeholderEl.appendChild(p);
+    }
+  }
 
   dropCtrl.on('drop', ({containerFile, fileMap}) => view(containerFile, fileMap));
   dropCtrl.on('dropstart', () => (spinnerEl.style.display = ''));

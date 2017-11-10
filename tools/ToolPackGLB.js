@@ -49,6 +49,13 @@ class ToolPackGLB {
     var inputFileStartInOutputBuffer = {};
 
     for (var i = 0; i < buffers.length; ++i) {
+      // add alignment chunk to 4 bytes if necessary
+      // TODO: check actual alignment requirements, currently 4 works for all supported types
+      if (outputBufferSize%4) {
+        var size = 4-(outputBufferSize%4);
+        outputChunks.push({size: size, data: new ArrayBuffer(size)});
+        outputBufferSize += size;
+      }
       var buffer = buffers[i];
       var uri = buffer.uri;
       if (uri === undefined) { // case a.
@@ -87,6 +94,13 @@ class ToolPackGLB {
     var inputImageStartInOutputBuffer = {};
 
     for (var i = 0; i < images.length; ++i) {
+      // add alignment chunk to 4 bytes if necessary
+      // TODO: check actual alignment requirements, currently 4 works for all supported types
+      if (outputBufferSize%4) {
+        var size = 4-(outputBufferSize%4);
+        outputChunks.push({size: size, data: new ArrayBuffer(size)});
+        outputBufferSize += size;
+      }
       var image = images[i];
       if (image.uri) { // this image refers to a file
         var uri = image.uri;

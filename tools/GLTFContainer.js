@@ -523,6 +523,21 @@ module.exports = class GLTFContainer {
     return id;
   }
 
+  setFileArrayBuffer(uri, data) {
+    this.files.set(this.resolveURL(uri), data);
+  }
+
+  setBufferArrayBuffer(bufferIndex, bufferData) {
+    var buffer = this.gltf.buffers[bufferIndex];
+    if (buffer.uri) {
+      return this.setFileArrayBuffer(buffer.uri, bufferData);
+    }
+    else if (this.glbBody) {
+      return this.glbBody = bufferData;
+    }
+    return undefined;
+  }
+
   helperVisitJsonObjects(json, functor) {
     const visitor = (x) => {
       if (Array.isArray(x)) {
@@ -585,20 +600,23 @@ module.exports = class GLTFContainer {
     console.log('Removed ' + bufferViewsToRemoveArray.length + ' bufferView(s)');
     if (buffersToRemoveSet.size > 0) {
       var buffersToRemoveArray = Array.from(buffersToRemoveSet);
-      this.removeUnusedBuffers(buffersToRemoveArray);
+      this.removeUnusedBuffers(buffersToRemoveArray, true);
     }
   }
 
-  removeUnusedBuffers(buffersToRemoveArray) {
+  removeUnusedBuffers(buffersToRemoveArray, compactUnusedData = false) {
     if (!this.gltf.buffers) return; // no buffers -> nothing to do
     // count the number of reference for each buffer ID
     var buffers = this.gltf.buffers;
-    var buffersRefs = new Array(buffers.length).fill(0);
+    var buffersRefs = new Array(buffers.length);
     this.helperVisitJsonObjects(this.gltf, (x) => {
       if ('buffer' in x) {
         var bufferId = x['buffer'];
         if (bufferId >= 0 && bufferId < buffers.length) { // valid Id
-          ++buffersRefs[bufferId];
+          if (buffersRefs[bufferId] === undefined) {
+            buffersRefs[bufferId] = [];
+          }
+          buffersRefs[bufferId].push(x);
         } else {
           console.error('Invalid buffer reference ' + bufferId);
         }
@@ -607,6 +625,88 @@ module.exports = class GLTFContainer {
     // only remove buffers without any reference
     // also store a set of candidate file uris to remove
     var filesToRemoveSet = new Set();
+    if (compactUnusedData) {
+      // the following buffers cannot be removed because there are still some reference to them
+      // we will compact them instead (i.e. remove any unused data range
+      var buffersToCompactArray = buffersToRemoveArray.filter((id) => !!buffersRefs[id]);
+      // we count the number of references for all data ranges by incrementing an counter
+      // at the start offset of a view, and decrementing it at its end
+      // once we sort these contributions, we can find any range that have 0 reference and remove them
+      for(let bufferId of buffersToCompactArray) {
+        var bufferData = this.getBufferArrayBuffer(bufferId);
+        if (bufferData === undefined) continue; // can't compact this buffer if we don't have its data
+        var dataUseCountChanges = [];
+        // add 0 and end of buffer, to make sure the whole data range is covered
+        dataUseCountChanges.push([0, 0]);
+        dataUseCountChanges.push([bufferData.byteLength, 0]);
+        for (let ref of buffersRefs[bufferId]) {
+          var offset = ref.byteOffset || 0;
+          dataUseCountChanges.push([offset, 1]);
+          if (ref.byteLength !== undefined) {
+            dataUseCountChanges.push([offset+ref.byteLength, -1]);
+          } // if there is no lenght specified, then we assume this refers to the full buffer
+        }
+        // sort the counter ops by offset
+        dataUseCountChanges.sort((a,b) => a[0] - b[0]);
+        let usedDataRanges = [];
+        let unusedDataRanges = [];
+        let counter = 0;
+        let lastOffset = 0;
+        for (let i = 0; i < dataUseCountChanges.length; ++i) {
+          let offset = dataUseCountChanges[i][0];
+          if (offset != lastOffset) {
+            var ranges = (counter > 0) ? usedDataRanges : unusedDataRanges;
+            if (ranges.length > 0 && ranges[ranges.length-1][1] == lastOffset) {
+              // extend the previous range
+              ranges[ranges.length-1][1] == offset;
+            }
+            else {
+              // add a range
+              ranges.push([lastOffset, offset]);
+            }
+            lastOffset = offset;
+          }
+          counter += dataUseCountChanges[i][1];
+        }
+        if (unusedDataRanges.length > 0) { // there are some unused data that can be compacted
+          var totalByteLength = 0;
+          var outputOffsetDataRanges = new Array(usedDataRanges.length);
+          for (let i = 0; i < usedDataRanges.length; ++i) {
+            outputOffsetDataRanges[i] = totalByteLength;
+            let length = usedDataRanges[i][1] - usedDataRanges[i][0];
+            // Pad to 4-bytes (TODO: check actual alignment requirements, currently 4 works for all supported types)
+            if (length%4 != 0) length += 4-(length%4);
+            totalByteLength += length;
+          }
+          var compactBufferData = new ArrayBuffer(totalByteLength);
+          console.log('Compacting Buffer ' + bufferId + ': ' + bufferData.byteLength + ' -> ' + compactBufferData.byteLength);
+          var inputBufferBytes = new Uint8Array(bufferData);
+          var compactBufferBytes = new Uint8Array(compactBufferData);
+          for (let i = 0; i < usedDataRanges.length; ++i) {
+            let offset = outputOffsetDataRanges[i];
+            let begin = usedDataRanges[i][0];
+            let end = usedDataRanges[i][1];
+            let length = end - begin;
+            compactBufferBytes.set(inputBufferBytes.slice(begin, end), offset);
+          }
+          this.setBufferArrayBuffer(bufferId, compactBufferData);
+          // update offsets in references to the now compacted data
+          for (let ref of buffersRefs[bufferId]) {
+            if (ref.byteOffset) { // if byteOffset is 0 nothing needs to be done
+              var offset = ref.byteOffset;
+              for (let i = 0; i < usedDataRanges.length; ++i) {
+                let begin = usedDataRanges[i][0];
+                let end = usedDataRanges[i][1];
+                if (offset >= begin && offset < end) {
+                  ref.byteOffset = outputOffsetDataRanges[i] + ref.byteOffset-begin;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
     buffersToRemoveArray = buffersToRemoveArray.filter((id) => !buffersRefs[id]);
     if (buffersToRemoveArray.length == 0) return; // no unused buffer
     var buffersToRemoveSet = new Set(buffersToRemoveArray);

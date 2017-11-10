@@ -142,7 +142,7 @@ class ToolDracoCompressor {
         // console.timeEnd('ArrayInt8');
 
         // console.time( 'DracoCompressorGLTF' );
-        const compressedBufferId = gltfContent.addBuffer("mesh_"+j+"_"+k+".bin",encodedArrayBuffer, encodedLen);
+        const compressedBufferId = gltfContent.addBuffer("mesh_"+j+"_"+k+".drc",encodedArrayBuffer, encodedLen);
         const compressedBufferViewId = gltfContent.addBufferView(compressedBufferId,0, encodedLen);
 
         if (primitive.extensions === undefined) {

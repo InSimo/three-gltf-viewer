@@ -343,7 +343,7 @@ module.exports = class GLTFContainer {
   getCredits() {
     var authors = (this.gltf.asset.extras||{}).authors || [];
     var licenses = (this.gltf.asset.extras||{}).licenses || [];
-    if (!authors && !licenses) {
+    if (!authors.length && !licenses.length) {
       return undefined;
     }
     var res = document.createElement('div');

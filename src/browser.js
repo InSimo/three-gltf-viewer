@@ -185,7 +185,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function onToolDone ({tool, result}) {
     spinnerEl.style.display = 'none';
-    if (panelCheckBox !== undefined && !kioskCheckBox.checked) {
+    console.log(result);
+    if (result && panelCheckBox !== undefined && !kioskCheckBox.checked) {
       panelCheckBox.checked = true;
     }
     if (panelContentElement !== undefined) {

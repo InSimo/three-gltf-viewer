@@ -54,8 +54,8 @@ class ToolDracoCompressor {
           totalOutputSize += outputSize;
           continue;
         }
-        if (primitive.indices === undefined || primitive.mode != 4 /*GL_TRIANGLES*/ ) {
-          res.status = 'not indexed triangles';
+        if (primitive.indices === undefined || (primitive.mode !== undefined && primitive.mode != 4 /*GL_TRIANGLES*/ ) ) {
+          res.status = 'not indexed triangles: ' + primitive.mode;
           continue;
         }
 

@@ -3,11 +3,11 @@
 // according to the glTF 2.0 specification
 //const mime = require('mime-types');
 
-class ToolGLTF2GLB {
+class ToolPackGLB {
 
   constructor () {
-    this.name = 'glTF ➔ glb';
-    this.icon = '▶';
+    this.name = 'Pack ➔ glb';
+    this.icon = '🗀'; // folder unicode character
     this.order = 20;
   }
 
@@ -30,9 +30,10 @@ class ToolGLTF2GLB {
     // 1. create an array of all the data 'chunk' to be concatenated into the unique binary buffer
     //    relevant data is all buffers and all images
     //    Possible cases for input data:
-    //     a. data in binary files, with or without a specified length
-    //     b. data as base64-encoded uri (NOT HANDLED YET)
-    //     c. data in external files/uris (NOT HANDLED YET)
+    //     a. data in the input GLB buffer
+    //     b. data in binary files, with or without a specified length
+    //     c. data as base64-encoded uri (NOT HANDLED YET)
+    //     d. data in external files/uris (NOT HANDLED YET)
 
     // each chunk has:
     //    - size
@@ -45,43 +46,67 @@ class ToolGLTF2GLB {
     //var outputBufferCount;
 
     var inputBufferStartInOutputBuffer = {};
+    var inputFileStartInOutputBuffer = {};
 
     for (var i = 0; i < buffers.length; ++i) {
-      // let's assume no buffer refer to the same file
       var buffer = buffers[i];
       var uri = buffer.uri;
-      if (files.has(uri)) { // case a.
+      if (uri === undefined) { // case a.
+        var body = gltfContent.glbBody;
+        if (body !== undefined) {
+          var chunkIndex = outputChunks.length;
+          var chunk = { size: body.byteLength, data: body };
+          outputChunks.push(chunk);
+          inputBufferStartInOutputBuffer[i] = outputBufferSize;
+          outputBufferSize += chunk.size;
+        }
+        else {
+          console.error('Buffer '+i+': does not have a uri but no pre-existing GLB body found');
+        }
+      }
+      else if (files.has(uri)) { // case b.
         var file = files.get(uri);
         console.log('Buffer ',i,': refers to file ',file);
-        var chunkIndex = outputChunks.length;
-        var chunk = { size: file.byteLength, data: file };
-        outputChunks.push(chunk);
-        inputBufferStartInOutputBuffer[i] = outputBufferSize;
-        outputBufferSize += chunk.size;
+        if (uri in inputFileStartInOutputBuffer) { // already included
+          inputBufferStartInOutputBuffer[i] = inputFileStartInOutputBuffer[uri];
+        }
+        else {
+          var chunkIndex = outputChunks.length;
+          var chunk = { size: file.byteLength, data: file };
+          outputChunks.push(chunk);
+          inputBufferStartInOutputBuffer[i] =
+            inputFileStartInOutputBuffer[uri] = outputBufferSize;
+          outputBufferSize += chunk.size;
+        }
       }
       else {
-        console.log('Buffer ',i,': NOT FOUND ',uri);
+        console.error('Buffer ',i,': NOT FOUND ',uri);
       }
     }
 
     var inputImageStartInOutputBuffer = {};
 
     for (var i = 0; i < images.length; ++i) {
-      // let's assume no image refer to the same file
       var image = images[i];
       if (image.uri) { // this image refers to a file
         var uri = image.uri;
         if (files.has(uri)) { // case a.
           var file = files.get(uri);
           console.log('Image ',i,': refers to file ',file);
-          var chunkIndex = outputChunks.length;
-          var chunk = { size: file.byteLength, data: file };
-          outputChunks.push(chunk);
-          inputImageStartInOutputBuffer[i] = outputBufferSize;
-          outputBufferSize += chunk.size;
+          if (uri in inputFileStartInOutputBuffer) { // already included
+            inputImageStartInOutputBuffer[i] = inputFileStartInOutputBuffer[uri];
+          }
+          else {
+            var chunkIndex = outputChunks.length;
+            var chunk = { size: file.byteLength, data: file };
+            outputChunks.push(chunk);
+            inputImageStartInOutputBuffer[i] =
+              inputFileStartInOutputBuffer[uri] = outputBufferSize;
+            outputBufferSize += chunk.size;
+          }
         }
         else {
-          console.log('Image ',i,': NOT FOUND ',uri);
+          console.error('Image ',i,': NOT FOUND ',uri);
         }
       }
       else if (image.bufferView) {
@@ -91,40 +116,43 @@ class ToolGLTF2GLB {
 
     // 2. update the GLTF json to refer to the output buffer instead of the input files
 
-    // for now, we consider only one remaining output buffer
-    json.buffers = [ { byteLength: outputBufferSize } ];
-
     for (var i = 0; i < bufferViews.length; ++i) {
-      // let's assume no buffer refer to the same file
       var bufferView = bufferViews[i];
+      // preserve the original buffer uri as the name on its dataViews
+      if (!bufferView.name && buffers[bufferView.buffer].uri) {
+        bufferView.name = buffers[bufferView.buffer].uri;
+      }
       bufferView.byteOffset += inputBufferStartInOutputBuffer[bufferView.buffer];
       bufferView.buffer = 0;
     }
+
+    // for now, we consider only one remaining output buffer
+    json.buffers = [ { byteLength: outputBufferSize } ];
 
     for (var i = 0; i < images.length; ++i) {
       // let's assume no image refer to the same file
       var image = images[i];
       if (image.uri) { // this image refers to a file
         var uri = image.uri;
-        if (files.has(uri)) { // case a.
+        if (files.has(uri)) { // case b.
           var file = files.get(uri);
           delete image.uri;
           // we need to create a bufferView for this image
           var bufferViewIndex = bufferViews.length;
-          var bufferView = { buffer: 0, byteOffset: inputImageStartInOutputBuffer[i], byteLength: file.byteLength };
+          var bufferView = { buffer: 0, byteOffset: inputImageStartInOutputBuffer[i], byteLength: file.byteLength, name: uri };
           var extension = uri.match(/\.([^\.\/\?#]+)($|\?|#)/)[1];
           var mimeType = imageExtMIME[extension];
           if (mimeType) {
             image.mimeType = mimeType;
           }
           else {
-            console.log('ERROR: unknown image extension',uri);
+            console.error('ERROR: unknown image extension',uri);
           }
           bufferViews.push(bufferView);
           image.bufferView = bufferViewIndex;
         }
         else {
-          console.log('Image ',i,': NOT FOUND ',uri);
+          console.error('Image ',i,': NOT FOUND ',uri);
         }
       }
       else if (image.bufferView) {
@@ -190,7 +218,7 @@ class ToolGLTF2GLB {
 
     var outputBinary = new Blob(outputBinaryItems, { type: 'model/gltf-binary' });
 
-    console.log(outputBinary);
+    //console.log(outputBinary);
 
     return gltfContent.loadSingleFile(gltfContent.name+'.glb', gltfContent.name, outputBinary)
       .then(() => gltfContent.info );
@@ -198,7 +226,7 @@ class ToolGLTF2GLB {
 }
 
 if (window.toolManager !== undefined) {
-  window.toolManager.addTool(new ToolGLTF2GLB());
+  window.toolManager.addTool(new ToolPackGLB());
 }
 else {
   console.error('ToolManager NOT FOUND');

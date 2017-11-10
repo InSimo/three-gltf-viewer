@@ -13,8 +13,6 @@ class ToolPackGLB {
 
   run ( gltfContent ) {
 
-    // input files Map
-    const files = gltfContent.files;
     // input json, modified in-place so we clone it first
     var json = JSON.parse(JSON.stringify(gltfContent.gltf));
     var buffers = json.buffers = json.buffers || [];
@@ -49,6 +47,24 @@ class ToolPackGLB {
     var inputFileStartInOutputBuffer = {};
 
     for (var i = 0; i < buffers.length; ++i) {
+      var buffer = buffers[i];
+      var uri = buffer.uri;
+      var bufferData = gltfContent.getBufferArrayBuffer(i);
+      if (bufferData === undefined) {
+        if (uri === undefined) {
+          console.error('Buffer '+i+': does not have a uri but no pre-existing GLB body found');
+        }
+        else {
+          console.error('Buffer ',i,': NOT FOUND ',uri);
+        }
+        continue;
+      }
+
+      if (uri !== undefined && uri in inputFileStartInOutputBuffer) { // already included
+        inputBufferStartInOutputBuffer[i] = inputFileStartInOutputBuffer[uri];
+        continue;
+      }
+
       // add alignment chunk to 4 bytes if necessary
       // TODO: check actual alignment requirements, currently 4 works for all supported types
       if (outputBufferSize%4) {
@@ -56,44 +72,29 @@ class ToolPackGLB {
         outputChunks.push({size: size, data: new ArrayBuffer(size)});
         outputBufferSize += size;
       }
-      var buffer = buffers[i];
-      var uri = buffer.uri;
-      if (uri === undefined) { // case a.
-        var body = gltfContent.glbBody;
-        if (body !== undefined) {
-          var chunkIndex = outputChunks.length;
-          var chunk = { size: body.byteLength, data: body };
-          outputChunks.push(chunk);
-          inputBufferStartInOutputBuffer[i] = outputBufferSize;
-          outputBufferSize += chunk.size;
-        }
-        else {
-          console.error('Buffer '+i+': does not have a uri but no pre-existing GLB body found');
-        }
+      var chunkIndex = outputChunks.length;
+      var chunk = { size: bufferData.byteLength, data: bufferData };
+      outputChunks.push(chunk);
+      inputBufferStartInOutputBuffer[i] = outputBufferSize;
+      if (uri !== undefined) {
+        inputFileStartInOutputBuffer[uri] = outputBufferSize;
       }
-      else if (files.has(uri)) { // case b.
-        var file = files.get(uri);
-        console.log('Buffer ',i,': refers to file ',file);
-        if (uri in inputFileStartInOutputBuffer) { // already included
-          inputBufferStartInOutputBuffer[i] = inputFileStartInOutputBuffer[uri];
-        }
-        else {
-          var chunkIndex = outputChunks.length;
-          var chunk = { size: file.byteLength, data: file };
-          outputChunks.push(chunk);
-          inputBufferStartInOutputBuffer[i] =
-            inputFileStartInOutputBuffer[uri] = outputBufferSize;
-          outputBufferSize += chunk.size;
-        }
-      }
-      else {
-        console.error('Buffer ',i,': NOT FOUND ',uri);
-      }
+      outputBufferSize += chunk.size;
     }
 
     var inputImageStartInOutputBuffer = {};
 
     for (var i = 0; i < images.length; ++i) {
+      var image = images[i];
+      if (image.bufferView !== undefined) {
+        // nothing to do, the underlying buffer is already covered above
+        continue;
+      }
+      var imageData = gltfContent.getImageArrayBuffer(i);
+      if (imageData === undefined) {
+        console.error('Image ',i,': NOT FOUND ',uri);
+        continue;
+      }
       // add alignment chunk to 4 bytes if necessary
       // TODO: check actual alignment requirements, currently 4 works for all supported types
       if (outputBufferSize%4) {
@@ -101,31 +102,21 @@ class ToolPackGLB {
         outputChunks.push({size: size, data: new ArrayBuffer(size)});
         outputBufferSize += size;
       }
-      var image = images[i];
-      if (image.uri) { // this image refers to a file
-        var uri = image.uri;
-        if (files.has(uri)) { // case a.
-          var file = files.get(uri);
-          console.log('Image ',i,': refers to file ',file);
-          if (uri in inputFileStartInOutputBuffer) { // already included
-            inputImageStartInOutputBuffer[i] = inputFileStartInOutputBuffer[uri];
-          }
-          else {
-            var chunkIndex = outputChunks.length;
-            var chunk = { size: file.byteLength, data: file };
-            outputChunks.push(chunk);
-            inputImageStartInOutputBuffer[i] =
-              inputFileStartInOutputBuffer[uri] = outputBufferSize;
-            outputBufferSize += chunk.size;
-          }
-        }
-        else {
-          console.error('Image ',i,': NOT FOUND ',uri);
-        }
+      var uri = image.uri;
+
+      if (uri !== undefined && uri in inputFileStartInOutputBuffer) { // already included
+        inputImageStartInOutputBuffer[i] = inputFileStartInOutputBuffer[uri];
+        continue;
       }
-      else if (image.bufferView) {
-        // nothing to do, the underlying buffer is already covered above
+
+      var chunkIndex = outputChunks.length;
+      var chunk = { size: imageData.byteLength, data: imageData };
+      outputChunks.push(chunk);
+      inputImageStartInOutputBuffer[i] = outputBufferSize;
+      if (uri !== undefined) {
+        inputFileStartInOutputBuffer[uri] = outputBufferSize;
       }
+      outputBufferSize += chunk.size;
     }
 
     // 2. update the GLTF json to refer to the output buffer instead of the input files
@@ -144,34 +135,32 @@ class ToolPackGLB {
     json.buffers = [ { byteLength: outputBufferSize } ];
 
     for (var i = 0; i < images.length; ++i) {
-      // let's assume no image refer to the same file
       var image = images[i];
-      if (image.uri) { // this image refers to a file
-        var uri = image.uri;
-        if (files.has(uri)) { // case b.
-          var file = files.get(uri);
-          delete image.uri;
-          // we need to create a bufferView for this image
-          var bufferViewIndex = bufferViews.length;
-          var bufferView = { buffer: 0, byteOffset: inputImageStartInOutputBuffer[i], byteLength: file.byteLength, name: uri };
-          var extension = uri.match(/\.([^\.\/\?#]+)($|\?|#)/)[1];
-          var mimeType = imageExtMIME[extension];
-          if (mimeType) {
-            image.mimeType = mimeType;
-          }
-          else {
-            console.error('ERROR: unknown image extension',uri);
-          }
-          bufferViews.push(bufferView);
-          image.bufferView = bufferViewIndex;
-        }
-        else {
-          console.error('Image ',i,': NOT FOUND ',uri);
-        }
-      }
-      else if (image.bufferView) {
+      if (image.bufferView !== undefined) {
         // nothing to do, the underlying buffer is already covered above
+        continue;
       }
+      var imageData = gltfContent.getImageArrayBuffer(i);
+      if (imageData === undefined) {
+        continue;
+      }
+      var uri = image.uri;
+      if (image.uri) { // this image refers to a file
+        delete image.uri;
+      }
+      // we need to create a bufferView for this image
+      var bufferViewIndex = bufferViews.length;
+      var bufferView = { buffer: 0, byteOffset: inputImageStartInOutputBuffer[i], byteLength: imageData.byteLength, name: uri };
+      var extension = uri.match(/\.([^\.\/\?#]+)($|\?|#)/)[1];
+      var mimeType = imageExtMIME[extension];
+      if (mimeType) {
+        image.mimeType = mimeType;
+      }
+      else {
+        console.error('ERROR: unknown image extension',uri);
+      }
+      bufferViews.push(bufferView);
+      image.bufferView = bufferViewIndex;
     }
 
     console.log(json);

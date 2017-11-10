@@ -189,7 +189,7 @@ module.exports = class GLTFContainer {
       dataIndex += 4;
 
       if ( chunkType === BINARY_EXTENSION_CHUNK_TYPES.JSON ) {
-        json = this.convertUint8ArrayToString( new Uint8Array( data.slice( dataIndex, dataIndex + chunkLength ) ) );
+        json = data.slice( dataIndex, dataIndex + chunkLength );
       }
       else if ( chunkType === BINARY_EXTENSION_CHUNK_TYPES.BIN ) {
         body = data.slice( dataIndex, dataIndex + chunkLength );
@@ -197,7 +197,7 @@ module.exports = class GLTFContainer {
       dataIndex += chunkLength;
     }
     this.glbBody = body;
-    return this.gltf = JSON.parse( json );
+    return this.parseGLTF( json );
   }
 
   addAuthors(authorString) {
@@ -467,6 +467,32 @@ module.exports = class GLTFContainer {
     return undefined;
   }
 
+  getBufferViewArrayBuffer(bufferViewIndex) {
+    var bufferView = this.gltf.bufferViews[bufferViewIndex];
+    var bufferIndex = bufferView.buffer;
+    var bufferData = this.getBufferArrayBuffer(bufferIndex);
+    if (bufferData !== undefined) {
+      var offset = bufferView.byteOffset || 0;
+      var length = bufferView.byteLength;
+      return bufferData.slice(offset,offset + length);
+    }
+    return undefined;
+  }
+
+  getImageArrayBuffer(imageIndex) {
+    var image = this.gltf.images[imageIndex];
+    if (image.bufferView !== undefined) {
+      return this.getBufferViewArrayBuffer(image.bufferView);
+    }
+    else if (image.uri) {
+      return this.getFileArrayBuffer(image.uri);
+    }
+    else if (this.glbBody) {
+      return this.glbBody;
+    }
+    return undefined;
+  }
+
   getAccessorByteLength(accessorIndex) {
     var accessor = this.gltf.accessors[accessorIndex];
     var componentTypeArray = this.getComponentTypeArray(accessor.componentType);
@@ -529,6 +555,7 @@ module.exports = class GLTFContainer {
 
   setBufferArrayBuffer(bufferIndex, bufferData) {
     var buffer = this.gltf.buffers[bufferIndex];
+    buffer.byteLength = bufferData.byteLength;
     if (buffer.uri) {
       return this.setFileArrayBuffer(buffer.uri, bufferData);
     }
@@ -658,7 +685,7 @@ module.exports = class GLTFContainer {
             var ranges = (counter > 0) ? usedDataRanges : unusedDataRanges;
             if (ranges.length > 0 && ranges[ranges.length-1][1] == lastOffset) {
               // extend the previous range
-              ranges[ranges.length-1][1] == offset;
+              ranges[ranges.length-1][1] = offset;
             }
             else {
               // add a range
@@ -747,7 +774,7 @@ module.exports = class GLTFContainer {
     // remove any uri that still exists in the json
     this.helperVisitJsonObjects(this.gltf, (x) => {
       if ('uri' in x) {
-        var fileId = this.resolveURL(x['url']);
+        var fileId = this.resolveURL(x['uri']);
         if (filesToRemoveSet.has(fileId)) {
           console.log('File ' + fileId + ' is still referenced.');
           filesToRemoveSet.delete(fileId)

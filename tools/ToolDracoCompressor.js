@@ -21,10 +21,15 @@ class ToolDracoCompressor {
       method: "edgebreaker",
       compression_level: 7
     };
-    console.log(options);
 
     var scope = this;
     return new Promise( function(resolve, reject) {
+      var res = scope.runInPromise(gltfContent, options);
+      resolve(res);
+    });
+  }
+
+  runInPromise(gltfContent, options) {
     console.time( 'DracoCompressor' );
     var gltf = gltfContent.gltf;
     var result = {};
@@ -57,7 +62,7 @@ class ToolDracoCompressor {
           var dracoData = gltfContent.getBufferViewArrayBuffer(primitive.extensions.KHR_draco_mesh_compression.bufferView);
           if (dracoData !== undefined)
           {
-            res.info = scope.inspectDraco(dracoData);
+            res.info = this.inspectDraco(dracoData);
           }
           continue;
         }
@@ -177,7 +182,7 @@ class ToolDracoCompressor {
         res.time = Math.round(telapsed) + ' ms';
 
         if (encodedArrayBuffer !== undefined) {
-          res.info = scope.inspectDraco(encodedArrayBuffer);
+          res.info = this.inspectDraco(encodedArrayBuffer);
         }
       }
       // console.timeEnd( 'DracoCompressorGLTF' );
@@ -211,8 +216,7 @@ class ToolDracoCompressor {
     // console.log(gltf);
 
     console.timeEnd( 'DracoCompressor' );
-    resolve(result);
-    });
+    return result;
   }
 
   inspectDraco(dracoData) {

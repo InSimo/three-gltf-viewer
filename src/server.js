@@ -248,7 +248,7 @@ app.get('/v:hashb64/model.glb', function(req, res) {
         res.status(404).send('Not found');
         return;
     }
-    res.type('model/gltf.binary');
+    res.type('model/gltf-binary');
     res.sendFile(file);
 });
 

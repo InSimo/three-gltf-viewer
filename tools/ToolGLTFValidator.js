@@ -31,7 +31,7 @@ class ToolGLTFValidator {
       const json = gltfContent.gltf;
       if (gltfContent.containerData && gltfContent.info.container.mimetype == 'model/gltf-binary') {
         var array = new Uint8Array(gltfContent.containerData);
-        validator.validateBytes(gltfContent.info.name, bytes, loadExternalResource)
+        validator.validateBytes(gltfContent.info.name, array, loadExternalResource)
           .then(resolve)
           .catch(reject);
       }

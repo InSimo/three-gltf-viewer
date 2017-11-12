@@ -255,8 +255,8 @@ module.exports = class GLTFContainer {
     var gltf = this.gltf;
 
 	const EXTMAP = {
-	  'gltf': 'model/gltf',
-	  'glb': 'model/gltf.binary',
+	  'gltf': 'model/gltf+json',
+	  'glb': 'model/gltf-binary',
 	  'zip': 'application/zip'
 	};
     // reverse of EXTMAP
@@ -289,7 +289,7 @@ module.exports = class GLTFContainer {
     }
     if ( this.glbBody ) {
       info.fileextension = 'glb';
-      info.format.extensions.push('KHR_binary_glTF');
+      //info.format.extensions.push('KHR_binary_glTF'); // GLB format is now part of the core 2.0 standard
     }
     if ( !this.containerData &&
          ( this.files.size == 0 ||

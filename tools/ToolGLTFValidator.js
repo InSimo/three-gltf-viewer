@@ -27,28 +27,29 @@ class ToolGLTFValidator {
         return Promise.reject(new Error('loadExternalResource failed, uri ' + uri + ' not found.'));
       }
     }
-    return new Promise( function(resolve, reject) {
-      const json = gltfContent.gltf;
-      const options = {
-        uri: gltfContent.info.name,
-        externalResourceFunction: loadExternalResource
-      };
-      if (gltfContent.containerData && gltfContent.info.container.mimetype == 'model/gltf-binary') {
-        var array = new Uint8Array(gltfContent.containerData);
-        validator.validateBytes(array, options)
-          .then(resolve)
-          .catch(reject);
-      }
-      else if (json) {
-        var string = JSON.stringify(json);
-        validator.validateString(string, options)
-          .then(resolve)
-          .catch(reject);
-      }
-      else {
-        reject('No GLTF asset');
-      }
-    });
+    const options = {
+      uri: gltfContent.info.name,
+      externalResourceFunction: loadExternalResource
+    };
+    return Promise.resolve(gltfContent.gltf)
+      .then((json) => {
+        if (gltfContent.containerData && gltfContent.info.container.mimetype == 'model/gltf-binary') {
+          var array = new Uint8Array(gltfContent.containerData);
+          return array;
+        }
+        else if (json){
+          // json -> string
+          var jsonString = JSON.stringify(json);
+          // string -> Uint8Array
+          var jsonArray = new TextEncoder().encode(jsonString);
+          return jsonArray;
+        }
+        else {
+          return Promise.reject('No GLTF asset');
+        }
+      }).then((array) => {
+        return validator.validateBytes(array, options);
+      });
   }
 }
 

@@ -29,17 +29,24 @@ class ToolGLTFValidator {
     }
     return new Promise( function(resolve, reject) {
       const json = gltfContent.gltf;
+      const options = {
+        uri: gltfContent.info.name,
+        externalResourceFunction: loadExternalResource
+      };
       if (gltfContent.containerData && gltfContent.info.container.mimetype == 'model/gltf-binary') {
         var array = new Uint8Array(gltfContent.containerData);
-        validator.validateBytes(gltfContent.info.name, array, loadExternalResource)
+        validator.validateBytes(array, options)
           .then(resolve)
           .catch(reject);
       }
       else if (json) {
         var string = JSON.stringify(json);
-        validator.validateString(gltfContent.info.name, string, loadExternalResource)
+        validator.validateString(string, options)
           .then(resolve)
           .catch(reject);
+      }
+      else {
+        reject('No GLTF asset');
       }
     });
   }

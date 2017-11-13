@@ -110,7 +110,7 @@ class ToolPackZIP {
             // adjust offsets
             for (let j = i; j <= ioverlap; ++j) {
               let bufferView2 = bufferViews[viewIds[j]];
-              bufferView2.byteOffset = (bufferView2.byteOffset||O) - inputBegin + outputOffset;
+              bufferView2.byteOffset = (bufferView2.byteOffset||0) - inputBegin + outputOffset;
             }
           }
           outputBinChunks.push({inputBegin: inputBegin, inputEnd: inputEnd, outputOffset:outputOffset});

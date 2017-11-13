@@ -89,7 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (gltfContent.containerData) {
       downloadBtnEl.style.display = (!params.hasOwnProperty('canSave') || params.canSave) ? null : 'none';
-      if (window.IS_UPLOAD_SUPPORTED !== undefined && IS_UPLOAD_SUPPORTED && (!params.hasOwnProperty('canShare') || params.canShare)) {
+      if (gltfContent.info.container.mimetype == 'model/gltf-binary' && window.IS_UPLOAD_SUPPORTED &&
+          (!params.hasOwnProperty('canShare') || params.canShare)) {
         shareBtnEl.style.display = null;
         var text = '';
         if (gltfContent.containerData.byteLength > 0) {

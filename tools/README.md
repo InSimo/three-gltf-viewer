@@ -7,7 +7,8 @@ This directory contains a set of tools for simple manipulation of glTF assets. T
 
 ## Currently Included Tools
 
-* ToolGLTF2GLB.js: pack asset as GLB binary file
+* ToolPackGLB.js: pack asset as GLB binary file
+* ToolPackZIP.js: pack asset as ZIP archive containing GLTF json file and associated binary buffers and images
 * ToolGLTFValidator.js: wrap [glTF Validator](https://github.com/KhronosGroup/glTF-Validator) to validate conformance to the glTF 2.0 specification
 * ToolDracoCompressor.js: wrap [Draco](https://github.com/google/draco) to compress meshes data *(glTF extension currently being reviewed)*
 

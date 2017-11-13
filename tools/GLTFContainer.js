@@ -451,6 +451,25 @@ module.exports = class GLTFContainer {
     return fileURL;
   }
 
+  getUniqueFileUri(uri = undefined) {
+    if (uri === undefined) {
+      uri = this.name.replace(/[\/\\#?:]/,'')+'.bin';
+    }
+    // split uri into prefix + num + suffix, where num is a number that could be increased
+    var prefix = uri, num = undefined, suffix = '';
+    suffix = prefix.match(/.[^.\/\\]+$/)[0];
+    if (suffix !== undefined) prefix = prefix.slice(0,prefix.length-suffix.length);
+    num = prefix.match(/[0-9]*$/)[0];
+    if (num !== undefined) prefix = prefix.slice(0,prefix.length-num.length);
+    //var [prefix, num, suffix] = uri.match(/^(.*)([0-9]*)((?:.[^.\/]*)?)$/).slice(1);
+    console.log([uri, prefix, num, suffix]);
+    while (this.files.has(this.resolveURL(uri))) {
+      num = (num || 0) + 1;
+      uri = '' + prefix + num + suffix;
+    }
+    return uri;
+  }
+
   getFileArrayBuffer(uri) {
     // TODO: support external URIs
     return this.files.get(this.resolveURL(uri));
@@ -551,6 +570,10 @@ module.exports = class GLTFContainer {
 
   setFileArrayBuffer(uri, data) {
     this.files.set(this.resolveURL(uri), data);
+  }
+
+  setMainFileArrayBuffer(data) {
+    this.files.set(this.mainFilePath, data);
   }
 
   setBufferArrayBuffer(bufferIndex, bufferData) {

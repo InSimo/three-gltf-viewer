@@ -1,4 +1,5 @@
 const DracoEncoderModule = require('../lib/draco/draco_encoder')();
+const DracoInspector = require('./DracoInspector');
 
 class ToolDracoCompressor {
 
@@ -6,6 +7,7 @@ class ToolDracoCompressor {
     this.name = 'Draco Compressor';
     this.icon = '<img src="assets/icons/draco-56.png" alt="Draco">';
     this.order = 10;
+    this.inspector = new DracoInspector();
   }
 
   run (gltfContent) {
@@ -95,12 +97,13 @@ class ToolDracoCompressor {
             var dracoData = gltfContent.getBufferViewArrayBuffer(compressedBufferViewId);
             if (dracoData !== undefined)
             {
-              res.info = this.inspectDraco(dracoData);
+              res.info = this.inspector.inspectDraco(dracoData);
             }
           }
           continue;
         }
-        if (primitive.indices === undefined || (primitive.mode !== undefined && primitive.mode != 4 /*GL_TRIANGLES*/ ) ) {
+        if (primitive.indices === undefined || (primitive.mode !== undefined &&
+                                                primitive.mode != 4 /*GL_TRIANGLES*/ ) ) {
           result.meshes[name] = 'not indexed triangles: ' + primitive.mode;
           totalUncompressedMeshes += 1;
           continue;
@@ -191,7 +194,7 @@ class ToolDracoCompressor {
         meshBuilder.AddFacesToMesh(dracoMesh, numFaces, indices);
 
         var numVertices = 0;
-        for(let [accessorId, accessorData] of compressedMeshData.accessors.entries()) {
+        for(let [accessorId, accessorData] of Array.from(compressedMeshData.accessors.entries()).reverse()) {
           var encoderType = accessorData.encoderType;
           var attrArray = gltfContent.getAccessorArrayBuffer(accessorId);
           inputSize += attrArray.byteLength;
@@ -218,7 +221,8 @@ class ToolDracoCompressor {
         }
         // console.timeEnd( 'DracoCompressorAttribute' );
 
-        console.log('Encoding ' + compressedMeshData.name + ': ' + numFaces + ' faces, ' + numVertices + ' vertices, ' + compressedMeshData.accessors.size + ' attributes');
+        console.log('Encoding ' + compressedMeshData.name + ': ' + numFaces + ' faces, ' +
+                    numVertices + ' vertices, ' + compressedMeshData.accessors.size + ' attributes');
         // console.time( 'DracoCompressorEncoder' );
         const encodedData = new DracoEncoderModule.DracoInt8Array();
 
@@ -241,7 +245,8 @@ class ToolDracoCompressor {
         // console.timeEnd('ArrayInt8');
 
         // console.time( 'DracoCompressorGLTF' );
-        const compressedBufferId = gltfContent.addBuffer(compressedMeshData.name+".drc",encodedArrayBuffer, encodedLen);
+        const compressedBufferId = gltfContent.addBuffer(compressedMeshData.name+".drc",
+                                                         encodedArrayBuffer, encodedLen);
         const compressedBufferViewId = gltfContent.addBufferView(compressedBufferId,0, encodedLen);
         compressedMeshData.compressedBufferViewId = compressedBufferViewId;
         // console.timeEnd( 'DracoCompressorGLTF' );
@@ -260,7 +265,7 @@ class ToolDracoCompressor {
         DracoEncoderModule.destroy(dracoMesh);
 
         if (encodedArrayBuffer !== undefined) {
-          res.info = this.inspectDraco(encodedArrayBuffer);
+          res.info = this.inspector.inspectDraco(encodedArrayBuffer);
         }
       }
       DracoEncoderModule.destroy(encoder);
@@ -329,13 +334,15 @@ class ToolDracoCompressor {
           else {
             // this primitive is not compressed, make sure we preserve the indices as well
             if (primitive.indices !== undefined && accessorDataToRemoveSet.has(primitive.indices)) {
-              console.warn('Indices accessor ' + primitive.indices + ' still in use in primitive ' + JSON.stringify(primitive));
+              console.warn('Indices accessor ' + primitive.indices + ' still in use in primitive ' +
+                           JSON.stringify(primitive));
               accessorDataToRemoveSet.delete(primitive.indices);
             }
           }
           for(let [key, value] of Object.entries(primitive.attributes)) {
             if (!(key in compressedAttributes) && accessorDataToRemoveSet.has(value)) {
-              console.warn('Attribute accessor ' + value + ' still in use in primitive ' + JSON.stringify(primitive));
+              console.warn('Attribute accessor ' + value + ' still in use in primitive ' +
+                           JSON.stringify(primitive));
               accessorDataToRemoveSet.delete(value);
             }
           }
@@ -379,46 +386,6 @@ class ToolDracoCompressor {
 
     console.timeEnd( 'DracoCompressor' );
     return result;
-  }
-
-  inspectDraco(dracoData) {
-    const dracoView = new DataView(dracoData);
-    var offset = 0;
-    var res = {};
-    // https://google.github.io/draco/spec/
-
-    // Draco standard constants
-    // (taken directly from the bitstream specification)
-    const DRACO = {
-      MAGIC: 'DRACO',
-      EncoderType: [ 'POINT_CLOUD', 'TRIANGULAR_MESH' ],
-      EncoderMethod: [ 'MESH_SEQUENTIAL_ENCODING', 'MESH_EDGEBREAKER_ENCODING' ],
-      AttributeDecoderType: [ 'MESH_VERTEX_ATTRIBUTE', 'MESH_CORNER_ATTRIBUTE' ],
-      AttributeDecoderMethod: [ 'MESH_TRAVERSAL_DEPTH_FIRST', 'MESH_TRAVERSAL_PREDICTION_DEGREE' ]
-    };
-
-    //
-    // draco header
-    //
-    var draco_string = '';
-    for (let i = 0; i < 5; ++i) {
-      draco_string += String.fromCharCode(dracoView.getUint8(offset+i));
-    }
-    offset += 5;
-    if (draco_string !== DRACO.MAGIC) {
-      res.error = 'draco_string mismatch: "'+draco_string+'"';
-      return res;
-    }
-    const major_version  = dracoView.getUint8(offset); offset+=1;
-    const minor_version  = dracoView.getUint8(offset); offset+=1;
-    const encoder_type   = dracoView.getUint8(offset); offset+=1;
-    const encoder_method = dracoView.getUint8(offset); offset+=1;
-    const flags          = dracoView.getUint16(offset); offset+=2;
-    res.version = major_version + '.' + minor_version;
-    res.encoder_type = DRACO.EncoderType[encoder_type] || encoder_type;
-    res.encoder_method = DRACO.EncoderMethod[encoder_method] || encoder_method;
-    res.flags = flags;
-    return res;
   }
 }
 

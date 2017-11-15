@@ -541,10 +541,10 @@ module.exports = class GLTFContainer {
 
       var inbuffer = new componentTypeArray(bufferArray.slice(offset, offset + bufferView.byteLength));
       buffer = new componentTypeArray(accessor.count*typeCount);
-
+      var componentTypeStride = stride/componentTypeArray.BYTES_PER_ELEMENT;
       for(var i = 0; i<accessor.count; i++) {
 
-        var inoffset = i * stride/elementSize;
+        var inoffset = i * componentTypeStride;
         var outoffset = i * typeCount;
 
         for (var c = 0; c < typeCount; ++c) {

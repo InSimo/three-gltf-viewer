@@ -3,8 +3,17 @@ const zip = require('zipjs-browserify');
 class ToolPackZIP {
 
   constructor () {
-    this.name = 'Pack ➔ zip';
-    this.icon = '🗀'; // folder unicode character
+    this.title = 'Pack zip';
+    this.name = 'Pack';
+    this.version = 'ZIP';
+    //this.icon = '🗀'; // folder unicode character
+    this.icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28"><path stroke-width='+
+    '"0" d="M21.3 4.6l-8-4c0 0 0 0 0 0-0.8-0.4-1.8-0.4-2.7 0l-8 4c-1 0.5-1.6 1.5-1.6 2.6v9.5c0 1'+
+    '.1 0.6 2.2 1.7 2.7l8 4c0.4 0.2 0.9 0.3 1.3 0.3 0.5 0 0.9-0.1 1.3-0.3l8-4c1-0.5 1.7-1.5 1.7-'+
+    '2.7v-9.5c0-1.1-0.6-2.1-1.7-2.6zM11.6 2.3c0.1-0.1 0.3-0.1 0.4-0.1 0.2 0 0.3 0 0.4 0.1l7.4 3.'+
+    '7-2.8 1.4-7.8-3.9 2.4-1.2zM12 9.9l-7.8-3.9 2.8-1.4 7.8 3.9-2.8 1.4zM3.5 17.7c-0.3-0.2-0.5-0'+
+    '.6-0.5-0.9v-9.2l8 4v9.8l-7.5-3.7zM20.4 17.7l-7.4 3.7v-9.8l8-4v9.2c0 0.4-0.2 0.7-0.6 0.9z"><'+
+    '/path></svg>';
     this.order = 21;
   }
 

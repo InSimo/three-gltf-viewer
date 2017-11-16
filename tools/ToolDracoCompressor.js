@@ -5,6 +5,7 @@ class ToolDracoCompressor {
 
   constructor () {
     this.name = 'Draco Compressor';
+    this.version = '⚠ Experimental ⚠';
     this.icon = '<img src="assets/icons/draco-56.png" alt="Draco">';
     this.order = 10;
     this.inspector = new DracoInspector();

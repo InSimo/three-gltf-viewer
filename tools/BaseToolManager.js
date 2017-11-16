@@ -45,8 +45,13 @@ module.exports = class BaseToolManager extends EventEmitter {
     }
     var nextEl = (nextTool !== undefined) ? nextTool.buttonElement : this.toolsMenuElementChild0;
     var button = document.createElement("button");
-    button.setAttribute('class','item');
-    button.innerHTML = '<span class="icon">'+tool.icon+'</span>&nbsp;&nbsp;'+tool.name+'</button>';
+    button.setAttribute('class','item item-flex');
+    button.innerHTML = '<span class="icon">'+tool.icon+'</span>'+
+      '<span class="title">'+
+      '<span class="name">'+tool.name+'</span>'+
+      (tool.version ? '<span class="version">'+tool.version+'</span>' : '')+
+      '</span>'+
+      '</button>';
     this.toolsMenuElement.insertBefore(button,nextEl);
     button.addEventListener('click', (e) => this.runTool(tool));
     tool.buttonElement = button;

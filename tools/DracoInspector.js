@@ -110,6 +110,7 @@ module.exports = class DracoInspector {
     let dracoOffset0 = 0;
 
     function trace(type, tsz, nb, varName, fnName, val) {
+      return; // DISABLED
       console.log((fnName || "?")+"()" + "\t" +
                   type + (nb > 1 ? " x " + nb : "") + "\t" +
                   (varName || "?") + "\t" +
@@ -118,6 +119,7 @@ module.exports = class DracoInspector {
     }
 
     function traceSet(val, varName, fnName) {
+      return; // DISABLED
       console.log((fnName || "?")+"()" + "\t" +
                   (varName || "?") + "\t" +
                   "=" + "\t" +
@@ -125,6 +127,7 @@ module.exports = class DracoInspector {
     }
 
     function traceSetI(val, varName, index, fnName) {
+      return; // DISABLED
       console.log((fnName || "?")+"()" + "\t" +
                   (varName || "?") + '[' + index + ']' + "\t" +
                   "=" + "\t" +
@@ -132,6 +135,7 @@ module.exports = class DracoInspector {
     }
 
     function traceAction(val, action, varName, index, fnName) {
+      return; // DISABLED
       console.log((fnName || "?")+"()" + "\t" +
                   (varName || "?") + '[' + index + ']' + "\t" +
                   action + "\t" +
@@ -139,6 +143,7 @@ module.exports = class DracoInspector {
     }
 
     function traceActionI(val, action, varName, index, fnName) {
+      return; // DISABLED
       console.log((fnName || "?")+"()" + "\t" +
                   (varName || "?") + '[' + index + ']' + "\t" +
                   action + "\t" +

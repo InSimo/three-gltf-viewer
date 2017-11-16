@@ -265,7 +265,8 @@ class ToolDracoCompressor {
         DracoEncoderModule.destroy(dracoMesh);
 
         if (encodedArrayBuffer !== undefined) {
-          res.info = this.inspector.inspectDraco(encodedArrayBuffer);
+          // DISABLED, apply the tool again to get detailed info
+          //res.info = this.inspector.inspectDraco(encodedArrayBuffer);
         }
       }
       DracoEncoderModule.destroy(encoder);

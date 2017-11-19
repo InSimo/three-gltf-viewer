@@ -18,14 +18,12 @@ class ToolPackZIP {
   }
 
   run ( gltfContent ) {
-
-    // input json, modified in-place so we clone it first
-    var json = JSON.parse(JSON.stringify(gltfContent.gltf));
-    console.log(json);
-    var buffers = json.buffers = json.buffers || [];
-    var bufferViews = json.bufferViews = json.bufferViews || [];
-    var images = json.images || [];
-    var meshes = json.meshes || [];
+    var gltf = gltfContent.gltf;
+    console.log(gltf);
+    var buffers = gltf.buffers = gltf.buffers || [];
+    var bufferViews = gltf.bufferViews = gltf.bufferViews || [];
+    var images = gltf.images || [];
+    var meshes = gltf.meshes || [];
 
     // invalidate existing container
     gltfContent.containerData = undefined;
@@ -36,10 +34,36 @@ class ToolPackZIP {
     }
     var defaultName = (gltfContent.name || 'model').replace(/[\/\\#?:]/,'');
 
-	const imageMIMEExt = {
-	  'image/png': 'png',
-	  'image/jpeg': 'jpg'
-	};
+    const imageMIMEExt = {
+      'image/png': 'png',
+      'image/jpeg': 'jpg'
+    };
+
+    // find references to buffers from bufferViews
+    var bufferRefsView = new Array(buffers.length);
+    for (let bufferViewId = 0; bufferViewId < bufferViews.length; ++bufferViewId) {
+      let bufferView = bufferViews[bufferViewId];
+      let bufferId = bufferView.buffer;
+      if (bufferRefsView[bufferId] === undefined)
+        bufferRefsView[bufferId] = [];
+      bufferRefsView[bufferId].push(bufferViewId);
+    }
+
+    // find references to buffers and buffer views from images
+    var bufferRefsImage = new Array(buffers.length);
+    var bufferViewRefsImages = new Array(bufferViews.length);
+    for (let imageId = 0; imageId < images.length; ++imageId) {
+      let bufferViewId = images[imageId].bufferView;
+      if (bufferViewId !== undefined) {
+        if (bufferViewRefsImages[bufferViewId] === undefined)
+          bufferViewRefsImages[bufferViewId] = [];
+        bufferViewRefsImages[bufferViewId].push(imageId);
+        let bufferId = bufferViews[bufferViewId].buffer;
+        if (bufferRefsImage[bufferId] === undefined)
+        bufferRefsImage[bufferId] = [];
+        bufferRefsImage[bufferId].push(imageId);
+      }
+    }
 
     if (gltfContent.glbBody) {
       // input was a GLB, extract the binary buffer into one or more files
@@ -48,19 +72,9 @@ class ToolPackZIP {
       if (buffers[0] === undefined || buffers[0].uri !== undefined) {
         throw new Error('GLB buffer[0] MUST not have an uri defined');
       }
-      // find references to views from images
-      var bufferViewRefsImages = new Array(bufferViews.length);
-      for (let imageId of images.keys()) {
-        let bufferViewId = images[imageId].bufferView;
-        if (bufferViewId !== undefined) {
-          if (bufferViewRefsImages[bufferViewId] === undefined)
-            bufferViewRefsImages[bufferViewId] = [];
-          bufferViewRefsImages[bufferViewId].push(imageId);
-        }
-      }
       // find references to views from compressed meshes
       var bufferViewRefsDracoMeshes = new Array(bufferViews.length);
-      if ((json.extensionsUsed || []).indexOf('KHR_draco_mesh_compression') != -1) {
+      if ((gltf.extensionsUsed || []).indexOf('KHR_draco_mesh_compression') != -1) {
         for (let j = 0; j < meshes.length; ++j) {
           for (let k = 0; k < meshes[j].primitives.length; ++k) {
             let primitive = meshes[j].primitives[k];
@@ -78,8 +92,8 @@ class ToolPackZIP {
         }
       }
 
-      // gather all bufferViews pointing to the GLB buffer
-      var viewIds = Array.from(bufferViews.keys()).filter((v) => bufferViews[v].buffer == 0);
+      // all bufferViews pointing to the GLB buffer
+      var viewIds = bufferRefsView[0] || [];
       // sort them by offset
       viewIds.sort((a,b) => (bufferViews[a].byteOffset||0) - (bufferViews[b].byteOffset||0));
       console.log(viewIds);
@@ -195,6 +209,76 @@ class ToolPackZIP {
       // now we can remove the GLB body
       gltfContent.glbBody = undefined;
     }
+
+    // put any image data (data-uri or external fetches) into new files
+    if (gltfContent.imagesData !== undefined) {
+      for(let [imageId, image] of images.entries()) {
+        let data = gltfContent.imagesData[imageId];
+        if (data !== undefined && image.bufferView === undefined) {
+          var name, ext;
+          if (image.name) {
+            name = image.name;
+          }
+          if (image.mimeType) {
+            ext = imageMIMEExt[image.mimeType];
+          }
+
+          if (!name) {
+            name = defaultName;
+          }
+
+          //if (!(uri.match(/.([^.\/\\]+)$/)[1])) {
+          if (!ext) {
+            ext = 'bin'; // default extension
+          }
+          // append ext to uri (replacing any existing extension)
+          let uri = name.replace(/\.([^.\/\\]+)$/,'') + '.' + ext;
+
+          var outputBinUri = gltfContent.getUniqueFileUri(uri);
+          image.uri = outputBinUri;
+          gltfContent.setFileArrayBuffer(outputBinUri, data);
+        }
+      }
+      gltfContent.imagesData = undefined;
+    }
+    // put any buffer data (data-uri or external fetches) into new files
+    if (gltfContent.buffersData !== undefined) {
+        for(let [bufferId, buffer] of buffers.entries()) {
+        let data = gltfContent.buffersData[bufferId];
+        if (data !== undefined) {
+          var name, ext;
+          if (buffer.name) {
+            name = buffer.name;
+          }
+          for (let imageId of (bufferRefsImage[bufferId]||[])) {
+            let image = images[imageId];
+            if (!name) {
+              name = image.name || ('image'+imageId);
+            }
+            if (!ext && image.mimeType) {
+              ext = imageMIMEExt[image.mimeType];
+            }
+          }
+
+          if (!name) {
+            name = defaultName;
+          }
+          //if (!(uri.match(/.([^.\/\\]+)$/)[1])) {
+          if (!ext) {
+            ext = 'bin'; // default extension
+          }
+          // append ext to uri (replacing any existing extension)
+          let uri = name.replace(/\.([^.\/\\]+)$/,'') + '.' + ext;
+
+          var outputBinUri = gltfContent.getUniqueFileUri(uri);
+          buffer.uri = outputBinUri;
+          buffer.byteLength = data.byteLength;
+          gltfContent.setFileArrayBuffer(outputBinUri, data);
+        }
+      }
+      gltfContent.buffersData = undefined;
+    }
+
     let mainFileExt = 'gltf';
     if (!gltfContent.mainFilePath) {
       gltfContent.mainFilePath = defaultName + '.' + mainFileExt;
@@ -203,9 +287,9 @@ class ToolPackZIP {
       gltfContent.mainFilePath = gltfContent.mainFilePath.replace(/\.([^.\/\\]+)$/,'') + '.' + mainFileExt;
     }
 
-    gltfContent.gltf = json;
+    gltfContent.gltf = gltf;
     // json -> string (with whitespaces for readability, zip will compress it anyway)
-    var jsonString = JSON.stringify(json,undefined,2);
+    var jsonString = JSON.stringify(gltf, undefined, 4);
     // string -> Uint8Array
     var jsonArray = new TextEncoder().encode(jsonString);
     var jsonBuffer = jsonArray.buffer;

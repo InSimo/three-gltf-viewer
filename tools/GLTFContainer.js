@@ -19,9 +19,11 @@ module.exports = class GLTFContainer {
     this.containerFileUri = undefined; // path to the original container file (used to resolve external uris)
     this.mainFilePath = undefined; // path to the main file (containing the GLTF json content)
     this.files = new Map(); // maps of files associated with this scene. the keys are paths (relative to the same root as mainFilePath), and the values are the ArrayBuffer content of each file
+    this.buffersData = undefined; // if buffers use non-file uri (either data or external), this contains the decoded/fetched data
+    this.imagesData = undefined; // if images use non-file uri (either data or external), this contains the decoded/fetched data
     this.gltf = {}; // the parsed json GLTF content
     this.glbBody = undefined; // if the scene is packaged as a GLB file, this is the content of the binary chunk
-    this.containerData = undefined; // if everything is in a single file (ZIP or GLB), content of that file
+    this.containerData = undefined; // if everything is in a single file (ZIP or GLB or JSON), content of that file
     this.info = new SceneInformation(); // metadata about this scene
   }
 
@@ -29,6 +31,8 @@ module.exports = class GLTFContainer {
     this.name = '';
     this.mainFilePath = undefined;
     this.files = new Map();
+    this.buffersData = undefined;
+    this.imagesData = undefined;
     this.gltf = {};
     this.glbBody = undefined;
     this.containerData = undefined;
@@ -106,7 +110,10 @@ module.exports = class GLTFContainer {
     var promise = this.promiseArrayBuffer(data || uri);
     return promise.then(buffer => {
       this.containerData = buffer;
-      this.parse(buffer);
+      return this.parse(buffer);
+    }).then( gltf => {
+      return this.fetchUris(gltf);
+    }).then( gltf => {
       return this.updateSceneInformation(data);
     });
   }
@@ -133,21 +140,26 @@ module.exports = class GLTFContainer {
       });
     })).then( () => {
       var mainFileData = this.files.get(mainFilePath);
-      this.parse(mainFileData);
+      return this.parse(mainFileData);
+    }).then( (gltf) => {
+      return this.fetchUris(gltf);
+    }).then( (gltf) => {
       // copy AUTHOR and LICENSE info into the glTF itself, so packing to GLB will preserve the appropriate credit
-      // possible names for author file, TODO: case insensitive lookup
+      // possible names for author file.
+      // TODO: propose an extension instead of writing in extras
+      let filesFromLowerCase = new Map(Array.from(files.keys()).map(v => [v.toLowerCase(), v]));
       var authorFileNames = [ 'AUTHOR', 'AUTHOR.txt', this.resolveURL('AUTHOR'), this.resolveURL('AUTHOR.txt') ];
-      authorFileNames = authorFileNames.filter(v => this.files.has(v));
+      authorFileNames = authorFileNames.map(v => v.toLowerCase()).filter(v => filesFromLowerCase.has(v));
       if (authorFileNames.length > 0) {
-        var authorFileName = authorFileNames[0];
+        var authorFileName = filesFromLowerCase.get(authorFileNames[0]);
         var authorFileData = this.files.get(authorFileName);
         var authorString = this.convertUint8ArrayToString( new Uint8Array( authorFileData ) );
         this.addAuthors(authorString);
       }
       var licenseFileNames = [ 'LICENSE', 'LICENSE.txt', this.resolveURL('LICENSE'), this.resolveURL('LICENSE.txt') ];
-      licenseFileNames = licenseFileNames.filter(v => this.files.has(v));
+      licenseFileNames = licenseFileNames.map(v => v.toLowerCase()).filter(v => filesFromLowerCase.has(v));
       if (licenseFileNames.length > 0) {
-        var licenseFileName = licenseFileNames[0];
+        var licenseFileName = filesFromLowerCase.get(licenseFileNames[0]);
         var licenseFileData = this.files.get(licenseFileName);
         var licenseString = this.convertUint8ArrayToString( new Uint8Array( licenseFileData ) );
         this.addLicense(licenseString);
@@ -198,6 +210,34 @@ module.exports = class GLTFContainer {
     }
     this.glbBody = body;
     return this.parseGLTF( json );
+  }
+
+  fetchUris(gltf) {
+    // fetch external / data uris
+    var buffers = gltf.buffers || [];
+    var images = gltf.images || [];
+    this.buffersData = new Array(buffers.length);
+    this.imagesData = new Array(images.length);
+    return Promise.all(
+      [[buffers, this.buffersData], [images, this.imagesData]].map(v => {
+        let elements = v[0];
+        let outputs = v[1];
+        return Promise.all(Array.from(elements.keys()).filter(index => {
+          let element = elements[index];
+          return element.hasOwnProperty('uri') && !this.files.has(this.resolveURL(element.uri)) 
+        }).map(index => {
+          let element = elements[index];
+          let uri = this.resolveURL(element.uri);
+          return this.promiseArrayBuffer(uri).then(data => {
+            outputs[index] = data;
+            return data;
+          })
+        }));
+      })
+    ).then(dataArray => {
+      console.log("Fetched " + dataArray.length + " buffers, total size " + dataArray.reduce((s, v) => s+v.byteLength, 0));
+      return gltf;
+    });
   }
 
   addAuthors(authorString) {
@@ -471,13 +511,15 @@ module.exports = class GLTFContainer {
   }
 
   getFileArrayBuffer(uri) {
-    // TODO: support external URIs
     return this.files.get(this.resolveURL(uri));
   }
 
   getBufferArrayBuffer(bufferIndex) {
     var buffer = this.gltf.buffers[bufferIndex];
-    if (buffer.uri) {
+    if (this.buffersData[bufferIndex] !== undefined) {
+      return this.buffersData[bufferIndex];
+    }
+    else if (buffer.uri) {
       return this.getFileArrayBuffer(buffer.uri);
     }
     else if (this.glbBody) {
@@ -502,6 +544,9 @@ module.exports = class GLTFContainer {
     var image = this.gltf.images[imageIndex];
     if (image.bufferView !== undefined) {
       return this.getBufferViewArrayBuffer(image.bufferView);
+    }
+    else if (this.imagesData[imageIndex] !== undefined) {
+      return this.imagesData[imageIndex];
     }
     else if (image.uri) {
       return this.getFileArrayBuffer(image.uri);

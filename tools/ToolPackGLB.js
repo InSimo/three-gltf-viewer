@@ -28,19 +28,14 @@ class ToolPackGLB {
     var bufferViews = json.bufferViews = json.bufferViews || [];
     var images = json.images || [];
 
-	const imageExtMIME = {
-	  'png':'image/png',
-	  'jpg':'image/jpeg',
-	  'jpeg':'image/jpeg'
-	};
+    const imageExtMIME = {
+      'png':'image/png',
+      'jpg':'image/jpeg',
+      'jpeg':'image/jpeg'
+    };
 
     // 1. create an array of all the data 'chunk' to be concatenated into the unique binary buffer
     //    relevant data is all buffers and all images
-    //    Possible cases for input data:
-    //     a. data in the input GLB buffer
-    //     b. data in binary files, with or without a specified length
-    //     c. data as base64-encoded uri (NOT HANDLED YET)
-    //     d. data in external files/uris (NOT HANDLED YET)
 
     // each chunk has:
     //    - size
@@ -49,7 +44,7 @@ class ToolPackGLB {
     var outputChunks = []
 
     // TODO: WIP
-    // number of buffers in output, which is buffer 0 for embedded binary data + any buffer refering to external urls
+    // number of buffers in output, which is buffer 0 for embedded binary data + any buffer refering to unresolved external urls
     //var outputBufferCount;
 
     var inputBufferStartInOutputBuffer = {};
@@ -132,11 +127,13 @@ class ToolPackGLB {
 
     for (var i = 0; i < bufferViews.length; ++i) {
       var bufferView = bufferViews[i];
+      var buffer = buffers[bufferView.buffer];
       // preserve the original buffer uri as the name on its dataViews
-      if (!bufferView.name && buffers[bufferView.buffer].uri) {
-        bufferView.name = buffers[bufferView.buffer].uri;
+      if (!bufferView.name && buffer.uri &&
+        buffer.uri.slice(0,5) !== 'data:' && buffer.uri.slice(0,5) !== 'blob:') {
+        bufferView.name = buffer.uri;
       }
-      bufferView.byteOffset += inputBufferStartInOutputBuffer[bufferView.buffer];
+      bufferView.byteOffset = (bufferView.byteOffset||0) + inputBufferStartInOutputBuffer[bufferView.buffer];
       bufferView.buffer = 0;
     }
 
@@ -153,23 +150,31 @@ class ToolPackGLB {
       if (imageData === undefined) {
         continue;
       }
-      var uri = image.uri;
+      var uri;
+      if (image.uri.slice(0,5) != 'data:' && image.uri.slice(0,5)!= 'blob:') {
+        uri = image.uri;
+      }
+      else if (image.name) {
+        uri = image.name;
+      }
       if (image.uri) { // this image refers to a file
         delete image.uri;
       }
       // we need to create a bufferView for this image
-      var bufferViewIndex = bufferViews.length;
+      var bufferViewId = bufferViews.length;
       var bufferView = { buffer: 0, byteOffset: inputImageStartInOutputBuffer[i], byteLength: imageData.byteLength, name: uri };
-      var extension = uri.match(/\.([^\.\/\?#]+)($|\?|#)/)[1];
-      var mimeType = imageExtMIME[extension];
-      if (mimeType) {
-        image.mimeType = mimeType;
-      }
-      else {
-        console.error('ERROR: unknown image extension',uri);
+      if (image.mimeType === undefined) {
+        var extension = uri.match(/\.([^\.\/\?#]+)($|\?|#)/)[1];
+        var mimeType = imageExtMIME[extension];
+        if (mimeType) {
+          image.mimeType = mimeType;
+        }
+        else {
+          console.error('ERROR: unknown image extension',uri);
+        }
       }
       bufferViews.push(bufferView);
-      image.bufferView = bufferViewIndex;
+      image.bufferView = bufferViewId;
     }
 
     console.log(json);

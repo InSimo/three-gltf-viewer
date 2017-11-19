@@ -764,7 +764,7 @@ module.exports = class DracoInspector {
           }
           last_symbol_ = symbol;
         }
-        console.groupCollapsed('last_symbol['+esi+']='+last_symbol_+"\tactive_context_="+active_context_+"\tactive_corner_stack="+active_corner_stack.length+"\t"+active_corner_stack.join(','));
+        //console.groupCollapsed('last_symbol['+esi+']='+last_symbol_+"\tactive_context_="+active_context_+"\tactive_corner_stack="+active_corner_stack.length+"\t"+active_corner_stack.join(','));
         traceSet(active_context_, "active_context_", "EdgebreakerTraversalStart");
         traceSetI(last_symbol_, "last_symbol", esi, "EdgebreakerDecodeSymbol");
         let corner = 3 * esi;
@@ -961,7 +961,7 @@ module.exports = class DracoInspector {
             traceActionI(split_active_corners[split_active_corners.length-1], "push_back", "split_active_corners", split_active_corners.length-1, "NewActiveCornerReached");
           }
         }
-        console.groupEnd();
+        //console.groupEnd();
       }
 
       //ProcessInteriorEdges

@@ -75,7 +75,7 @@ module.exports = class Loader {
 
       if (loader instanceof THREE.GLTFLoader) {
         console.log('Enabling Draco support');
-        loader.setDRACOLoader( new THREE.DRACOLoader( 'lib/draco/', {type: 'wasm'} ) );
+        loader.setDRACOLoader( new THREE.DRACOLoader( 'lib/draco/', {type: 'js'} ) );
       }
 
       const blobURLs = [];

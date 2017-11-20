@@ -299,6 +299,10 @@ app.use(function (err, req, res, next) {
     res.status(500).send('Something went wrong');
 })
 
+// properly detect https when behind a proxy
+// TODO (make this configurable)
+app.enable('trust proxy');
+
 var server = app.listen(5000, undefined, function(){
     // print server URLs to the console, so that the browser can be started by Ctrl+click
     var host = server.address().address;

@@ -58,15 +58,15 @@ class ToolPackBase64 {
         if (filename && !buffer.name) {
           buffer.name = filename;
         }
-        if (fileext in imageExtMIME) {
-          mimeType = imageExtMIME[fileext];
-        }
+        //if (fileext in imageExtMIME) {
+        //  mimeType = imageExtMIME[fileext];
+        //}
       }
       for(let imageId of (bufferRefsImage[bufferId]||[])) {
         let image = images[imageId];
-        if (image.mimeType) {
-          mimeType = image.mimeType;
-        }
+        //if (image.mimeType) {
+        //  mimeType = image.mimeType;
+        //}
       }
       if (!mimeType) {
         mimeType = "application/octet-stream";

@@ -523,7 +523,7 @@ module.exports = class GLTFContainer {
       return this.getFileArrayBuffer(buffer.uri);
     }
     else if (this.glbBody) {
-      return this.glbBody;
+      return this.glbBody.slice(0, buffer.byteLength);
     }
     return undefined;
   }

@@ -173,17 +173,69 @@ document.addEventListener('DOMContentLoaded', () => {
   const panelCheckBox = document.querySelector('#panel-input');
   toolManager.setupGUI(function addToolButton(tool, nextTool) {
     var nextEl = (nextTool !== undefined) ? nextTool.buttonElement : toolsMenuElementChild0;
-    var button = document.createElement("button");
-    button.setAttribute('class','item item-flex');
+    let hasGUI = (tool.options !== undefined);
+    var toolEl = document.createElement("div");
+    toolEl.classList.add('item-tool');
+    var button = document.createElement("button" );
+    toolEl.appendChild(button);
+    button.classList.add('item');
+    button.classList.add('item-flex');
     button.innerHTML = '<span class="icon">'+tool.icon+'</span>'+
       '<span class="title">'+
       '<span class="name">'+tool.name+'</span>'+
       (tool.version ? '<span class="version">'+tool.version+'</span>' : '')+
-      '</span>'+
-      '</button>';
-    toolsMenuElement.insertBefore(button,nextEl);
+      '</span>';
+    if (hasGUI) {
+      function toolCreateGUI(gui, options, optionsGUI) {
+        for (let name of Object.keys(options)) {
+          let controller = undefined;
+          const params = optionsGUI.hasOwnProperty(name) ? optionsGUI[name] : 
+            optionsGUI.hasOwnProperty('default') ? optionsGUI['default'] : {};
+          if (params === false) continue; // no GUI for this option
+          if (typeof options[name] === 'object') {
+            let folder = gui.addFolder(name);
+            toolCreateGUI(folder, options[name], params);
+          }
+          else {
+            if (params.options !== undefined) {
+              controller = gui.add(options, name, params.options);
+            }
+            else if (params.min !== undefined && params.max !== undefined) {
+              if (params.step !== undefined) {
+                controller = gui.add(options, name, params.min, params.max, params.step);
+              }
+              else {
+                controller = gui.add(options, name, params.min, params.max);
+              }
+            }
+            else {
+              controller = gui.add(options, name);
+              if (params.min) controller.min(params.min);
+              if (params.max) controller.max(params.max);
+              if (params.step) controller.step(params.step);
+            }
+            controller.listen();
+          }
+        }
+      }
+      let options = tool.options;
+      let optionsGUI = tool.optionsGUI || {};
+      const gui = new dat.GUI({autoPlace: false, width: 300});
+      //let actions = { Run: () => toolManager.runTool(tool) };
+      //gui.add(actions, "Run");
+      toolCreateGUI(gui, options, optionsGUI);
+      let optionsEl = document.createElement("div");
+      //let optionsElWrap = document.createElement("div");
+      optionsEl.classList.add('tools-gui');
+      //optionsElWrap.classList.add('gui-wrap');
+      optionsEl/*Wrap*/.appendChild(gui.domElement);
+      //optionsEl.appendChild(optionsElWrap);
+      toolEl.appendChild(optionsEl);
+      gui.open();
+    }
     button.addEventListener('click', (e) => toolManager.runTool(tool));
-    tool.buttonElement = button;
+    toolsMenuElement.insertBefore(toolEl,nextEl);
+    tool.buttonElement = toolEl;
   });
 
   function onToolStart ({tool, message}) {

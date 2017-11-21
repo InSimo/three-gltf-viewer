@@ -1,9 +1,9 @@
 class ToolPackBase64 {
 
   constructor () {
-    this.title = 'Pack Base64';
+    this.title = 'Pack base64';
     this.name = 'Pack';
-    this.version = 'Base64';
+    this.version = 'base64';
     //this.icon = '🗀'; // folder unicode character
     this.icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28"><path stroke-width='+
     '"0" d="M21.3 4.6l-8-4c0 0 0 0 0 0-0.8-0.4-1.8-0.4-2.7 0l-8 4c-1 0.5-1.6 1.5-1.6 2.6v9.5c0 1'+

@@ -83,6 +83,7 @@ body {
 .menu {
   height: 3rem;
   background: #454545;
+  overflow: visible;
 }
 
 .header .h1,
@@ -154,7 +155,9 @@ body {
 }
 
 .header button.item,
-.header label.item {
+.header label.item,
+.header div.item {
+  position: relative;
   height: 34px;
   line-height: 35px;
   border: 0;
@@ -227,6 +230,28 @@ body {
   position: absolute;
   top: 0;
   right: 0;
+}
+
+.item-tool {
+  position: relative;
+}
+
+.tools-gui {
+  position: absolute;
+  top: 32px;
+  left: 50%;
+  margin-left: -150px;
+  z-index: 100;
+  display: none;
+  padding-top: 8px;
+}
+
+.header .item-tool:hover > .tools-gui {
+  display: block;
+}
+
+.tools-gui:hover {
+  display: block;
 }
 
 .dg li.gui-stats:not(.folder) {

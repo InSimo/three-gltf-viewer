@@ -9,21 +9,33 @@ class ToolDracoCompressor {
     this.icon = '<img src="assets/icons/draco-56.png" alt="Draco">';
     this.order = 10;
     this.inspector = new DracoInspector();
+
+    // compression options
+    this.options = {
+      compressionLevel: 7,
+      quantization: {
+        position: 14,
+        texcoord: 12,
+        normal: 8,
+        color: 8,
+        generic: 8,
+      },
+      method: "edgebreaker",
+      trace: false
+    };
+    // custom GUI settings: (meant as arguments to dat.GUI, although apps are free to use something else)
+    this.optionsGUI = {
+      compressionLevel: {min: 0, max: 10, step: 1},
+      quantization: { default: {min: 1, max: 32, step: 1} },
+      method: {options: ["edgebreaker", "sequential"]},
+      trace: {}
+    };
   }
 
   run (gltfContent) {
 
     // compression options
-    // TODO: add GUI to control them
-    const options = {
-      pos_quantization_bits: 14,
-      tex_coords_quantization_bits: 12,
-      normals_quantization_bits: 8,
-      colors_quantization_bits: 8,
-      generic_quantization_bits: 8,
-      method: "edgebreaker",
-      compression_level: 7
-    };
+    const options = this.options;
 
     var scope = this;
     return new Promise( function(resolve, reject) {
@@ -98,7 +110,7 @@ class ToolDracoCompressor {
             var dracoData = gltfContent.getBufferViewArrayBuffer(compressedBufferViewId);
             if (dracoData !== undefined)
             {
-              res.info = this.inspector.inspectDraco(dracoData);
+              res.info = this.inspector.inspectDraco(dracoData, options.trace);
             }
           }
           continue;
@@ -161,13 +173,13 @@ class ToolDracoCompressor {
 
       const encoder = new DracoEncoderModule.Encoder();
 
-      const speed = 10 - options.compression_level;
+      const speed = 10 - options.compressionLevel;
       encoder.SetSpeedOptions(speed, speed);
-      encoder.SetAttributeQuantization(DracoEncoderModule.POSITION, options.pos_quantization_bits);
-      encoder.SetAttributeQuantization(DracoEncoderModule.TEX_COORD, options.tex_coords_quantization_bits);
-      encoder.SetAttributeQuantization(DracoEncoderModule.NORMAL, options.normals_quantization_bit);
-      encoder.SetAttributeQuantization(DracoEncoderModule.COLOR, options.colors_quantization_bit);
-      encoder.SetAttributeQuantization(DracoEncoderModule.GENERIC, options.generic_quantization_bits);
+      encoder.SetAttributeQuantization(DracoEncoderModule.POSITION, options.quantization.position);
+      encoder.SetAttributeQuantization(DracoEncoderModule.TEX_COORD, options.quantization.texcoord);
+      encoder.SetAttributeQuantization(DracoEncoderModule.NORMAL, options.quantization.normal);
+      encoder.SetAttributeQuantization(DracoEncoderModule.COLOR, options.quantization.color);
+      encoder.SetAttributeQuantization(DracoEncoderModule.GENERIC, options.quantization.generic);
       if (options.method === "edgebreaker") {
         encoder.SetEncodingMethod(DracoEncoderModule.MESH_EDGEBREAKER_ENCODING);
       } else if (options.method === "sequential") {

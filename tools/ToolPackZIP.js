@@ -15,6 +15,14 @@ class ToolPackZIP {
     '.6-0.5-0.9v-9.2l8 4v9.8l-7.5-3.7zM20.4 17.7l-7.4 3.7v-9.8l8-4v9.2c0 0.4-0.2 0.7-0.6 0.9z"><'+
     '/path></svg>';
     this.order = 21;
+
+    this.options = {
+      compressionLevel: 6
+    }
+    // custom GUI settings: (meant as arguments to dat.GUI, although apps are free to use something else)
+    this.optionsGUI = {
+      compressionLevel: {min: 0, max: 9, step: 1},
+    };
   }
 
   run ( gltfContent ) {
@@ -24,6 +32,8 @@ class ToolPackZIP {
     var bufferViews = gltf.bufferViews = gltf.bufferViews || [];
     var images = gltf.images || [];
     var meshes = gltf.meshes || [];
+
+    const options = this.options;
 
     // invalidate existing container
     gltfContent.containerData = undefined;
@@ -299,7 +309,8 @@ class ToolPackZIP {
     console.log(zip);
     return new Promise((resolve, reject) => {
         console.log('ZIP: creating writer');
-      zip.createWriter(new zip.BlobWriter("application/zip"), resolve, reject);
+      zip.createWriter(new zip.BlobWriter("application/zip"), resolve, reject,
+        (options.compressionLevel === 0));
     }).then ((zipWriter) => {
       // use a BlobReader object to read the data stored into blob variable
       // not clear if zipWrite support starting several add() concurrently,
@@ -309,7 +320,10 @@ class ToolPackZIP {
           var [filePath, data] = e;
           return new Promise((resolve, reject) => {
             console.log('ZIP: adding ' + filePath + ' ( ' + data.byteLength + ' )');
-            zipWriter.add(filePath, new zip.BlobReader(new Blob([data], {type: 'application/octet-stream'})), resolve);
+            zipWriter.add(filePath,
+              new zip.BlobReader(new Blob([data], {type: 'application/octet-stream'})),
+              resolve, undefined,
+              {level: options.compressionLevel});
           });
         });
       }, Promise.resolve()).then(() => zipWriter);

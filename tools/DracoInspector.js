@@ -92,10 +92,10 @@ module.exports = class DracoInspector {
   constructor () {
   }
 
-  inspectDraco(dracoData) {
+  inspectDraco(dracoData, traceEnabled = false) {
     var res = {}
     try {
-      this.parseDraco(dracoData, res);
+      this.parseDraco(dracoData, res, traceEnabled);
     }
     catch(e) {
       console.error(e);
@@ -104,13 +104,13 @@ module.exports = class DracoInspector {
     return res;
   }
 
-  parseDraco(dracoData, res) {
+  parseDraco(dracoData, res, traceEnabled = false) {
     const dracoView = new DataView(dracoData);
     var dracoOffset = 0;
     let dracoOffset0 = 0;
 
     function trace(type, tsz, nb, varName, fnName, val) {
-      return; // DISABLED
+      if (!traceEnabled) return; // DISABLED
       console.log((fnName || "?")+"()" + "\t" +
                   type + (nb > 1 ? " x " + nb : "") + "\t" +
                   (varName || "?") + "\t" +
@@ -119,7 +119,7 @@ module.exports = class DracoInspector {
     }
 
     function traceSet(val, varName, fnName) {
-      return; // DISABLED
+      if (!traceEnabled) return; // DISABLED
       console.log((fnName || "?")+"()" + "\t" +
                   (varName || "?") + "\t" +
                   "=" + "\t" +
@@ -127,7 +127,7 @@ module.exports = class DracoInspector {
     }
 
     function traceSetI(val, varName, index, fnName) {
-      return; // DISABLED
+      if (!traceEnabled) return; // DISABLED
       console.log((fnName || "?")+"()" + "\t" +
                   (varName || "?") + '[' + index + ']' + "\t" +
                   "=" + "\t" +
@@ -135,7 +135,7 @@ module.exports = class DracoInspector {
     }
 
     function traceAction(val, action, varName, index, fnName) {
-      return; // DISABLED
+      if (!traceEnabled) return; // DISABLED
       console.log((fnName || "?")+"()" + "\t" +
                   (varName || "?") + '[' + index + ']' + "\t" +
                   action + "\t" +
@@ -143,7 +143,7 @@ module.exports = class DracoInspector {
     }
 
     function traceActionI(val, action, varName, index, fnName) {
-      return; // DISABLED
+      if (!traceEnabled) return; // DISABLED
       console.log((fnName || "?")+"()" + "\t" +
                   (varName || "?") + '[' + index + ']' + "\t" +
                   action + "\t" +
@@ -214,6 +214,7 @@ module.exports = class DracoInspector {
     var dracoOffsetBits = 0;
 
     function traceBits(nb, varName, fnName, val) {
+      if (!traceEnabled) return; // DISABLED
       console.log((fnName || "?")+"()" + "\t" +
                   "b" + nb + "\t" +
                   (varName || "?") + "\t" +
@@ -515,7 +516,7 @@ module.exports = class DracoInspector {
 
       // ParseEdgebreakerConnectivityData
       const edgebreaker_traversal_type = getUI8("edgebreaker_traversal_type","ParseEdgebreakerConnectivityData");
-      const num_new_vertices = 0;
+      let num_new_vertices = 0;
       // version 2.0 or 2.1
       if (version < 0x202) {
         num_new_vertices = getVarUI32("num_new_vertices","ParseEdgebreakerConnectivityData");
@@ -764,7 +765,8 @@ module.exports = class DracoInspector {
           }
           last_symbol_ = symbol;
         }
-        //console.groupCollapsed('last_symbol['+esi+']='+last_symbol_+"\tactive_context_="+active_context_+"\tactive_corner_stack="+active_corner_stack.length+"\t"+active_corner_stack.join(','));
+        if (traceEnabled)
+          console.groupCollapsed('last_symbol['+esi+']='+last_symbol_+"\tactive_context_="+active_context_+"\tactive_corner_stack="+active_corner_stack.length+"\t"+active_corner_stack.join(','));
         traceSet(active_context_, "active_context_", "EdgebreakerTraversalStart");
         traceSetI(last_symbol_, "last_symbol", esi, "EdgebreakerDecodeSymbol");
         let corner = 3 * esi;
@@ -961,7 +963,8 @@ module.exports = class DracoInspector {
             traceActionI(split_active_corners[split_active_corners.length-1], "push_back", "split_active_corners", split_active_corners.length-1, "NewActiveCornerReached");
           }
         }
-        //console.groupEnd();
+        if (traceEnabled)
+          console.groupEnd();
       }
 
       //ProcessInteriorEdges

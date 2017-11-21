@@ -167,10 +167,24 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const toolsMenuElement = document.querySelector('#tools-menu');
+  const toolsMenuElementChild0 = toolsMenuElement.children[0];
   const panelTitleElement = document.querySelector('#panel-title');
   const panelContentElement = document.querySelector('#panel-content');
   const panelCheckBox = document.querySelector('#panel-input');
-  toolManager.setupGUI(toolsMenuElement);
+  toolManager.setupGUI(function addToolButton(tool, nextTool) {
+    var nextEl = (nextTool !== undefined) ? nextTool.buttonElement : toolsMenuElementChild0;
+    var button = document.createElement("button");
+    button.setAttribute('class','item item-flex');
+    button.innerHTML = '<span class="icon">'+tool.icon+'</span>'+
+      '<span class="title">'+
+      '<span class="name">'+tool.name+'</span>'+
+      (tool.version ? '<span class="version">'+tool.version+'</span>' : '')+
+      '</span>'+
+      '</button>';
+    toolsMenuElement.insertBefore(button,nextEl);
+    button.addEventListener('click', (e) => toolManager.runTool(tool));
+    tool.buttonElement = button;
+  });
 
   function onToolStart ({tool, message}) {
     spinnerEl.style.display = null;

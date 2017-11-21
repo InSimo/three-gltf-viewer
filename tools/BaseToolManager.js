@@ -8,12 +8,28 @@ module.exports = class BaseToolManager extends EventEmitter {
     this.state = state;
   }
 
-  setupGUI (toolsMenuElement) {
-    this.toolsMenuElement = toolsMenuElement;
-    this.toolsMenuElementChild0 = toolsMenuElement.children[0];
+  setupGUI (addToolGUIFunction) {
+    this.addToolGUIFunction = addToolGUIFunction;
     for (let tool of this.tools) {
-      addToolButton(tool);
+      this.addToolGUI(tool);
     }
+  }
+
+  /**
+   * @param  {Tool} tool
+   */
+  addToolGUI (tool) {
+    if (this.addToolGUIFunction === undefined) return; // setupGUI was not called yet
+    // find the tool before which this one will be shown, based on order
+    var nextTool = undefined;
+    for (let t of this.tools) {
+      if (t === tool) break; // other tools do not have their GUI yet
+      if ( tool.order < t.order &&
+          ( nextTool === undefined || t.order < nextTool.order ) ) {
+        nextTool = t;
+      }
+    }
+    this.addToolGUIFunction(tool, nextTool);
   }
 
   /**
@@ -24,37 +40,9 @@ module.exports = class BaseToolManager extends EventEmitter {
       tool.order = 0;
     }
     this.tools.push(tool);
-    if (this.toolsMenuElement !== undefined) {
-      this.addToolButton(tool);
-    }
+    this.addToolGUI(tool);
     console.log('Added Tool '+tool.name);
     this.emit('tooladded', {tool: tool});
-  }
-
-  /**
-   * @param  {Tool} tool
-   */
-  addToolButton (tool) {
-    // find the tool before which this one will be shown, based on order
-    var nextTool = undefined;
-    for (let t of this.tools) {
-      if (t !== tool && t.buttonElement !== undefined && tool.order < t.order &&
-          ( nextTool === undefined || t.order < nextTool.order ) ) {
-        nextTool = t;
-      }
-    }
-    var nextEl = (nextTool !== undefined) ? nextTool.buttonElement : this.toolsMenuElementChild0;
-    var button = document.createElement("button");
-    button.setAttribute('class','item item-flex');
-    button.innerHTML = '<span class="icon">'+tool.icon+'</span>'+
-      '<span class="title">'+
-      '<span class="name">'+tool.name+'</span>'+
-      (tool.version ? '<span class="version">'+tool.version+'</span>' : '')+
-      '</span>'+
-      '</button>';
-    this.toolsMenuElement.insertBefore(button,nextEl);
-    button.addEventListener('click', (e) => this.runTool(tool));
-    tool.buttonElement = button;
   }
 
   /**

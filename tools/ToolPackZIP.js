@@ -249,7 +249,8 @@ class ToolPackZIP {
           gltfContent.setFileArrayBuffer(outputBinUri, data);
         }
       }
-      gltfContent.imagesData = undefined;
+      // reset image uri data
+      gltfContent.imagesData = new Array(images.length);
     }
     // put any buffer data (data-uri or external fetches) into new files
     if (gltfContent.buffersData !== undefined) {
@@ -286,7 +287,8 @@ class ToolPackZIP {
           gltfContent.setFileArrayBuffer(outputBinUri, data);
         }
       }
-      gltfContent.buffersData = undefined;
+      // reset buffers uri data
+      gltfContent.buffersData = new Array(buffers.length);
     }
 
     let mainFileExt = 'gltf';

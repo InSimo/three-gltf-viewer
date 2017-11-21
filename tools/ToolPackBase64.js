@@ -51,7 +51,8 @@ class ToolPackBase64 {
       let buffer = buffers[bufferId];
       let data = gltfContent.getBufferArrayBuffer(bufferId);
       let mimeType;
-      if (buffer.uri.slice(0,5)!= 'data:' && buffer.uri.slice(0,5) != 'blob:') {
+      if (buffer.uri !== undefined &&
+          buffer.uri.slice(0,5)!= 'data:' && buffer.uri.slice(0,5) != 'blob:') {
         let filename = buffer.uri.toLowerCase().match(/(?:^|\/)([^\/\\]+)$/)[1];
         let fileext = buffer.uri.toLowerCase().match(/.([^.\/\\]+)$/)[1];
         if (filename && !buffer.name) {
@@ -122,6 +123,7 @@ class ToolPackBase64 {
     // remove reference to all previously referenced files
     gltfContent.mainFilePath = undefined;
     gltfContent.files = new Map();
+    gltfContent.glbBody = undefined;
     gltfContent.containerFileUri = defaultName + '.' + mainFileExt;
     gltfContent.containerData = jsonBuffer;
 

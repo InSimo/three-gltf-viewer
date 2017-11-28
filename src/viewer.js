@@ -541,11 +541,11 @@ module.exports = class Viewer {
 
     if (this.clips.length) {
       this.animFolder.domElement.style.display = '';
-      const actionStates = this.state.actionStates = {};
+      const actionStates = this.state.actionStates;
       this.clips.forEach((clip, clipIndex) => {
         // Autoplay the first clip.
         let action;
-        if (clipIndex === 0) {
+        if (clipIndex === 0 || actionStates[clip.name]) {
           actionStates[clip.name] = true;
           action = this.mixer.clipAction(clip);
           action.play();
@@ -568,6 +568,7 @@ module.exports = class Viewer {
   clear () {
 
     this.scene.remove( this.content );
+    this.state.actionStates = {};
   }
 
   getState () {

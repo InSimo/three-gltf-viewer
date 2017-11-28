@@ -81,9 +81,12 @@ body {
 }
 
 .menu {
-  height: 3rem;
+  height: auto;
+  min-height: 3rem;
   background: #454545;
   overflow: visible;
+  flex-wrap: wrap;
+  padding-bottom: 7px;
 }
 
 .header .h1,
@@ -109,6 +112,7 @@ body {
 }
 .header .item {
   padding: 0 0.8em;
+  margin-top: 7px;
   font-size: 0.8rem;
   text-decoration: none;
   color: #F5F5F5;
@@ -239,7 +243,7 @@ body {
 
 .tools-gui {
   position: absolute;
-  top: 32px;
+  top: 39px;
   left: 50%;
   margin-left: -150px;
   z-index: 100;
@@ -387,6 +391,10 @@ a.gltf-author {
   .header {
     font-size: 1em;
     padding: 0 0.5em;
+  }
+
+  .menu {
+    padding-bottom: 7px;
   }
 
   .hidden-sm-down {

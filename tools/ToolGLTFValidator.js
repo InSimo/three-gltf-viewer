@@ -50,6 +50,11 @@ class ToolGLTFValidator {
         }
       }).then((array) => {
         return validator.validateBytes(array, options);
+      }).then((result) => {
+        if (result.issues !== undefined && result.issues.numErrors !== undefined && result.issues.numErrors > 0) {
+          result.errors = result.issues.numErrors; // copy to root errors property so panel can detect that there are errors and show a red color.
+        }
+        return result;
       });
   }
 }

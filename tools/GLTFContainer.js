@@ -1,3 +1,7 @@
+/*
+ * @author Jeremie Allard / https://github.com/JeremieA
+ */
+
 // no longer using crypto because it adds too much dependencies, using sha.js directly instead
 //const crypto = require('crypto');
 const Sha224 = require('sha.js/sha224');
@@ -234,8 +238,11 @@ module.exports = class GLTFContainer {
           })
         }));
       })
-    ).then(dataArray => {
-      console.log("Fetched " + dataArray.length + " buffers, total size " + dataArray.reduce((s, v) => s+v.byteLength, 0));
+    ).then(dataArrays => {
+      let dataArray = Array.prototype.concat.apply([],dataArrays);
+      if (dataArray.length > 0) {
+        console.log("Fetched " + dataArray.length + " buffers, total size " + dataArray.reduce((s, v) => s+v.byteLength, 0));
+      }
       return gltf;
     });
   }

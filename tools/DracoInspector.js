@@ -1,7 +1,7 @@
 /**
  * Parse a Draco buffer, not to efficiently decompress it but rather to
  * check the specification and discover compression options that were used.
- * @author Jeremie Allard / https://twitter.com/JeremieAllard
+ * @author Jeremie Allard / https://github.com/JeremieA
  */
 
 // https://google.github.io/draco/spec/

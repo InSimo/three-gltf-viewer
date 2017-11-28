@@ -1,3 +1,4 @@
+// gltf-validator fails to run if setimmediate is not also imported
 require('setimmediate');
 const validator = require('gltf-validator');
 

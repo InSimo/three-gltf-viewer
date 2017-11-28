@@ -1,3 +1,7 @@
+// Note: this implementation uses Node's Buffer.toString method to convert ArrayBuffers to base64.
+// It works in browsers when packaged with browserify, but may require changes when using other
+// packaging tools.
+
 class ToolPackBase64 {
 
   constructor () {

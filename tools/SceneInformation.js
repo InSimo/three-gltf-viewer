@@ -1,6 +1,6 @@
 /**
  * Store information about current 3D scene
- * @author Jeremie Allard / https://twitter.com/JeremieAllard
+ * @author Jeremie Allard / https://github.com/JeremieA
  */
 
 module.exports = class SceneInformation {

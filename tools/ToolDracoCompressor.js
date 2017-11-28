@@ -21,6 +21,7 @@ class ToolDracoCompressor {
         generic: 8,
       },
       method: "edgebreaker",
+      morphTargets: true,
       trace: false
     };
     // custom GUI settings: (meant as arguments to dat.GUI, although apps are free to use something else)
@@ -89,7 +90,8 @@ class ToolDracoCompressor {
           var compressedBufferViewId = primitive.extensions.KHR_draco_mesh_compression.bufferView;
           var outputSize = gltf.bufferViews[compressedBufferViewId].byteLength;
           var inputSize = 0;
-          for(let value of Object.values(primitive.attributes).concat([primitive.indices])) {
+          for(let value of Array.prototype.concat.apply(Object.values(primitive.attributes),
+              [[primitive.indices]].concat((primitive.targets || []).map(Object.values)))) {
             var size = gltfContent.getAccessorByteLength(value);
             inputSize += size;
             if (!inputAccessorsSet.has(value)) {
@@ -145,22 +147,29 @@ class ToolDracoCompressor {
           meshesToCompressMap.set(mapKey, compressedMeshData);
         }
         compressedMeshData.primitives.push(primitive);
+        var attributesAndTargets = [ primitive.attributes ];
+        if (options.morphTargets && primitive.targets !== undefined) {
+          attributesAndTargets = attributesAndTargets.concat(primitive.targets);
+        }
+        for (let ti = 0; ti < attributesAndTargets.length; ++ti) {
+          for(let [key, value] of Object.entries(attributesAndTargets[ti])) {
+            if (compressedMeshData.accessors.has(value)) {
+              continue; // this attribute is already added
+            }
+            var encoderType = DracoEncoderModule.GENERIC;
+            if (ti > 0)
+            {} // we use GENERIC for all morph target attributes, as the current Draco encoder only supports one POSITION/NORMAL
+            else if (key=='POSITION')
+              encoderType = DracoEncoderModule.POSITION;
+            else if (key=='NORMAL')
+              encoderType = DracoEncoderModule.NORMAL;
+            else if (key.slice(0,8)=='TEXCOORD')
+              encoderType = DracoEncoderModule.TEX_COORD;
+            else if (key.slice(0,5)=='COLOR')
+              encoderType = DracoEncoderModule.COLOR;
 
-        for(let [key, value] of Object.entries(primitive.attributes)) {
-          if (compressedMeshData.accessors.has(value)) {
-            continue; // this attribute is already added
+            compressedMeshData.accessors.set(value, { encoderType: encoderType });
           }
-          var encoderType = DracoEncoderModule.GENERIC;
-          if (key=='POSITION')
-            encoderType = DracoEncoderModule.POSITION;
-          else if (key=='NORMAL')
-            encoderType = DracoEncoderModule.NORMAL;
-          else if (key.slice(0,8)=='TEXCOORD')
-            encoderType = DracoEncoderModule.TEX_COORD;
-          else if (key.slice(0,5)=='COLOR')
-            encoderType = DracoEncoderModule.COLOR;
-
-          compressedMeshData.accessors.set(value, { encoderType: encoderType });
         }
       }
     }
@@ -207,7 +216,7 @@ class ToolDracoCompressor {
         meshBuilder.AddFacesToMesh(dracoMesh, numFaces, indices);
 
         var numVertices = 0;
-        for(let [accessorId, accessorData] of Array.from(compressedMeshData.accessors.entries()).reverse()) {
+        for(let [accessorId, accessorData] of compressedMeshData.accessors.entries()) {
           var encoderType = accessorData.encoderType;
           var attrArray = gltfContent.getAccessorArrayBuffer(accessorId);
           inputSize += attrArray.byteLength;
@@ -293,12 +302,19 @@ class ToolDracoCompressor {
       for (let primitive of compressedMeshData.primitives) {
 
         accessorDataToRemoveSet.add(primitive.indices);
-        var compressedAttributes = {};
-        for(let [key, value] of Object.entries(primitive.attributes)) {
-          var compressedId = (compressedMeshData.accessors.get(value) || {}).compressedId;
-          if (compressedId !== undefined) {
-            compressedAttributes[key] = compressedId;
-            accessorDataToRemoveSet.add(value);
+        var attributesAndTargets = [ primitive.attributes ];
+        if (options.morphTargets && primitive.targets !== undefined) {
+          attributesAndTargets = attributesAndTargets.concat(primitive.targets);
+        }
+        var compressedAttributesAndTargets = [];
+        for (let ti = 0; ti < attributesAndTargets.length; ++ti) {
+          var compressedAttributes = compressedAttributesAndTargets[ti] = {};
+          for(let [key, value] of Object.entries(attributesAndTargets[ti])) {
+            var compressedId = (compressedMeshData.accessors.get(value) || {}).compressedId;
+            if (compressedId !== undefined) {
+              compressedAttributes[key] = compressedId;
+              accessorDataToRemoveSet.add(value);
+            }
           }
         }
 
@@ -310,8 +326,11 @@ class ToolDracoCompressor {
         }
         primitive.extensions.KHR_draco_mesh_compression = {
             bufferView: compressedBufferViewId,
-            attributes: compressedAttributes
+            attributes: compressedAttributesAndTargets[0]
         };
+        if (compressedAttributesAndTargets.length > 1) {
+          primitive.extensions.KHR_draco_mesh_compression.targets = compressedAttributesAndTargets.slice(1);
+        }
         // console.timeEnd( 'DracoCompressorGLTF' );
       }
     }

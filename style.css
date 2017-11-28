@@ -152,6 +152,7 @@ body {
 
 .header .item .icon {
   font-size: 1.2rem;
+  margin-bottom: 0;
 }
 
 .header button.item,

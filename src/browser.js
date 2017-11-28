@@ -3,6 +3,8 @@ const Viewer = require('./viewer');
 const Loader = require('./loader');
 const Exporter = require('./exporter');
 const DropController = require('./drop-controller');
+// Disabled as gltf-validator is integrated as part of the tools in this branch
+//const ValidationController = require('./validation-controller');
 const GLTFContainer = require('../tools/GLTFContainer');
 const BaseToolManager = require('../tools/BaseToolManager');
 const queryString = require('query-string');
@@ -318,6 +320,9 @@ document.addEventListener('DOMContentLoaded', () => {
   dropCtrl.on('dropstart', () => (spinnerEl.style.display = ''));
   dropCtrl.on('droperror', () => (spinnerEl.style.display = 'none'));
 
+  // Disabled as gltf-validator is integrated as part of the tools in this branch
+  //const validationCtrl = new ValidationController(document.body);
+
   const previewEl = document.querySelector('.preview');
 
   function view (containerFile, fileMap, params = {}) {
@@ -430,6 +435,11 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(fileURL);
       }
     };
+
+    if (!hash.kiosk) {
+      // Disabled as gltf-validator is integrated as part of the tools in this branch
+      //validationCtrl.validate(fileURL, rootPath, fileMap);
+    }
 
     const rootPath = rootFilePath.slice(0, rootFilePath.length - rootFilePath.split('/').pop().length); //rootFilePath.slice(0, rootFilePath.lastIndexOf('/'));
 

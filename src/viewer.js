@@ -1,11 +1,12 @@
 /* global dat */
 
 const THREE = window.THREE = require('three');
-const Stats = require('../lib/stats.min.js');
+const Stats = require('../lib/stats.min');
 const environments = require('../assets/environment/index');
 const createVignetteBackground = require('three-vignette-background');
 
-require('../lib/OrbitControls');
+
+require('three/examples/js/controls/OrbitControls');
 
 const DEFAULT_CAMERA = '[default]';
 
@@ -30,11 +31,16 @@ module.exports = class Viewer {
       camera: DEFAULT_CAMERA,
       wireframe: false,
       skeleton: false,
+      grid: false,
 
       // Lights
       addLights: true,
-      'direct ↔ ambient': 0.25,
-      intensity: 1.0,
+      exposure: 1.0,
+      textureEncoding: 'sRGB',
+      ambientIntensity: 0.3,
+      ambientColor: 0xFFFFFF,
+      directIntensity: 0.8,
+      directColor: 0xFFFFFF
     };
 
     this.prevTime = 0;
@@ -54,6 +60,7 @@ module.exports = class Viewer {
     this.scene.add( this.defaultCamera );
 
     this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+    this.renderer.gammaOutput = true;
     this.renderer.setClearColor( 0x000000, 0 );
     this.renderer.setPixelRatio( window.devicePixelRatio );
     this.renderer.setSize( el.clientWidth, el.clientHeight );
@@ -72,7 +79,6 @@ module.exports = class Viewer {
 
     this.el.appendChild(this.renderer.domElement);
 
-    this.lightCtrl = null;
     this.cameraCtrl = null;
     this.cameraFolder = null;
     this.animFolder = null;
@@ -80,6 +86,8 @@ module.exports = class Viewer {
     this.morphFolder = null;
     this.morphCtrls = [];
     this.skeletonHelpers = [];
+    this.gridHelper = null;
+    this.axesHelper = null;
 
     this.addGUI();
     if (options.kiosk) this.gui.close();
@@ -222,6 +230,7 @@ module.exports = class Viewer {
     this.updateLights();
     this.updateGUI();
     this.updateEnvironment();
+    this.updateTextureEncoding();
     this.updateDisplay();
 
     window.content = this.content;
@@ -279,62 +288,58 @@ module.exports = class Viewer {
     }
   }
 
+  updateTextureEncoding () {
+    const encoding = this.state.textureEncoding === 'sRGB'
+      ? THREE.sRGBEncoding
+      : THREE.LinearEncoding;
+    this.content.traverse((node) => {
+      if (node.isMesh) {
+        const material = node.material;
+        if (material.map) material.map.encoding = encoding;
+        if (material.emissiveMap) material.emissiveMap.encoding = encoding;
+        if (material.map || material.emissiveMap) material.needsUpdate = true;
+      }
+    });
+  }
+
   updateLights () {
+    const state = this.state;
     const lights = this.lights;
 
-    if (this.state.addLights && !lights.length) {
+    if (state.addLights && !lights.length) {
       this.addLights();
-    } else if (!this.state.addLights && lights.length) {
+    } else if (!state.addLights && lights.length) {
       this.removeLights();
     }
 
+    this.renderer.toneMappingExposure = state.exposure;
+
     if (lights.length) {
-      const ratio = this.state['direct ↔ ambient'];
-      const intensity = this.state.intensity;
-      lights[0].intensity = lights[0].userData.baseIntensity * intensity * ratio;
-      lights[1].intensity = lights[1].userData.baseIntensity * intensity * (1 - ratio);
-      lights[2].intensity = lights[2].userData.baseIntensity * intensity * (1 - ratio);
-      lights[3].intensity = lights[3].userData.baseIntensity * intensity * (1 - ratio);
+      lights[0].intensity = state.ambientIntensity;
+      lights[0].color.setHex(state.ambientColor);
+      lights[1].intensity = state.directIntensity;
+      lights[1].color.setHex(state.directColor);
     }
   }
 
   addLights () {
-    const ratio = this.state['direct ↔ ambient'];
+    const state = this.state;
 
-    const light1  = new THREE.AmbientLight(0x808080, 1.0);
-    light1.userData.baseIntensity = light1.intensity;
-    light1.intensity *= ratio;
+    const light1  = new THREE.AmbientLight(state.ambientColor, state.ambientIntensity);
     light1.name = 'ambient_light';
-    this.scene.add( light1 );
+    this.defaultCamera.add( light1 );
 
-    const light2  = new THREE.DirectionalLight(0xFFFFFF, 0.375);
-    light2.userData.baseIntensity = light2.intensity;
-    light2.intensity *= (1 - ratio);
-    light2.position.set(3, 1, -2.6);
-    light2.name = 'back_light';
-    this.scene.add( light2 );
+    const light2  = new THREE.DirectionalLight(state.directColor, state.directIntensity);
+    light2.position.set(0.5, 0, 0.866); // ~60º
+    light2.name = 'main_light';
+    this.defaultCamera.add( light2 );
 
-    const light3  = new THREE.DirectionalLight(0xFFFFFF, 0.625);
-    light3.userData.baseIntensity = light3.intensity;
-    light3.intensity *= (1 - ratio);
-    light3.position.set(0, -1, 2);
-    light3.name   = 'key_light';
-    this.scene.add( light3 );
-
-    const light4  = new THREE.DirectionalLight(0xFFFFFF, 1.25);
-    light4.userData.baseIntensity = light4.intensity;
-    light4.intensity *= (1 - ratio);
-    light4.position.set(2, 3, 3);
-    light4.name = 'fill_light';
-    this.scene.add( light4 );
-
-    this.lights.push(light1, light2, light3, light4);
-
+    this.lights.push(light1, light2);
   }
 
   removeLights () {
 
-    this.lights.forEach((light) => this.scene.remove(light));
+    this.lights.forEach((light) => this.defaultCamera.remove(light));
     this.lights.length = 0;
 
   }
@@ -387,6 +392,22 @@ module.exports = class Viewer {
         this.skeletonHelpers.push(helper);
       }
     });
+
+    if (this.state.grid !== Boolean(this.gridHelper)) {
+      if (this.state.grid) {
+        this.gridHelper = new THREE.GridHelper();
+        this.axesHelper = new THREE.AxesHelper();
+        this.axesHelper.renderOrder = 999;
+        this.axesHelper.onBeforeRender = (renderer) => renderer.clearDepth();
+        this.scene.add(this.gridHelper);
+        this.scene.add(this.axesHelper);
+      } else {
+        this.scene.remove(this.gridHelper);
+        this.scene.remove(this.axesHelper);
+        this.gridHelper = null;
+        this.axesHelper = null;
+      }
+    }
   }
 
   addGUI () {
@@ -395,31 +416,42 @@ module.exports = class Viewer {
 
     // Display controls.
     const dispFolder = gui.addFolder('Display');
-    this.envMapCtrl = dispFolder.add(this.state, 'environment', environments.map((env) => env.name));
-    this.envMapCtrl.onChange(() => this.updateEnvironment());
     this.envBackgroundCtrl = dispFolder.add(this.state, 'background');
     this.envBackgroundCtrl.onChange(() => this.updateEnvironment());
-    const wireframeCtrl = dispFolder.add(this.state, 'wireframe').listen();
-    wireframeCtrl.onChange(() => this.updateDisplay());
-    const skeletonCtrl = dispFolder.add(this.state, 'skeleton').listen();
-    skeletonCtrl.onChange(() => this.updateDisplay());
-    dispFolder.add(this.controls, 'autoRotate').listen();
-
+    this.wireframeCtrl = dispFolder.add(this.state, 'wireframe');
+    this.wireframeCtrl.onChange(() => this.updateDisplay());
+    this.skeletonCtrl = dispFolder.add(this.state, 'skeleton');
+    this.skeletonCtrl.onChange(() => this.updateDisplay());
+    this.gridCtrl = dispFolder.add(this.state, 'grid');
+    this.gridCtrl.onChange(() => this.updateDisplay());
+    this.autoRotateCtrl = dispFolder.add(this.controls, 'autoRotate');
 
     // Lighting controls.
-    const lightFolder = gui.addFolder('Lights');
-    this.lightCtrl = lightFolder.add(this.state, 'addLights').listen();
-    this.lightCtrl.onChange(() => this.updateLights());
-    const intensityCtrl = lightFolder.add(this.state,'intensity', 0, 2).listen();
-    intensityCtrl.onChange(() => this.updateLights());
-    const directAmbientRatio = lightFolder.add(this.state,'direct ↔ ambient', 0, 1).listen();
-    directAmbientRatio.onChange(() => this.updateLights());
+    const lightFolder = gui.addFolder('Lighting');
+    this.encodingCtrl = lightFolder.add(this.state, 'textureEncoding', ['sRGB', 'Linear']);
+    this.encodingCtrl.onChange(() => this.updateTextureEncoding());
+    this.gammaOutputCtrl = lightFolder.add(this.renderer, 'gammaOutput');
+    this.gammaOutputCtrl.onChange(() => {
+      this.content.traverse((node) => {
+        if (node.isMesh) node.material.needsUpdate = true;
+      });
+    });
+    this.envMapCtrl = lightFolder.add(this.state, 'environment', environments.map((env) => env.name));
+    this.envMapCtrl.onChange(() => this.updateEnvironment());
+    [
+      lightFolder.add(this.state, 'exposure', 0, 2).listen(),
+      lightFolder.add(this.state, 'addLights').listen(),
+      lightFolder.add(this.state, 'ambientIntensity', 0, 2).listen(),
+      lightFolder.addColor(this.state, 'ambientColor').listen(),
+      lightFolder.add(this.state, 'directIntensity', 0, 2).listen(),
+      lightFolder.addColor(this.state, 'directColor').listen()
+    ].forEach((ctrl) => ctrl.onChange(() => this.updateLights()));
 
     // Animation controls.
     this.animFolder = gui.addFolder('Animation');
     this.animFolder.domElement.style.display = 'none';
-    const playbackSpeedCtrl = this.animFolder.add(this.state, 'playbackSpeed', 0, 1).listen();
-    playbackSpeedCtrl.onChange((speed) => {
+    this.playbackSpeedCtrl = this.animFolder.add(this.state, 'playbackSpeed', 0, 1);
+    this.playbackSpeedCtrl.onChange((speed) => {
       if (this.mixer) this.mixer.timeScale = speed;
     });
     this.animFolder.add({playAll: () => this.playAllClips()}, 'playAll');
@@ -453,9 +485,15 @@ module.exports = class Viewer {
   }
 
   updateGUI () {
-    this.envMapCtrl.updateDisplay();
     this.envBackgroundCtrl.updateDisplay();
-    this.lightCtrl.updateDisplay();
+    this.wireframeCtrl.updateDisplay();
+    this.skeletonCtrl.updateDisplay();
+    this.gridCtrl.updateDisplay();
+    this.autoRotateCtrl.updateDisplay();
+    this.encodingCtrl.updateDisplay();
+    this.gammaOutputCtrl.updateDisplay();
+    this.envMapCtrl.updateDisplay();
+    this.playbackSpeedCtrl.updateDisplay();
 
     this.cameraFolder.domElement.style.display = 'none';
 

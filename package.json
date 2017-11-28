@@ -16,6 +16,7 @@
     "build:dev": "browserify src/browser.js tools/Tool*.js --debug --no-dedupe -p [ factor-bundle -o 'cat > bundle.`basename $FILE`' ] -o bundle.common.js",
     "build:uglify": "browserify src/browser.js tools/Tool*.js --debug -g uglifyify --no-dedupe -p [ factor-bundle -o 'exorcist bundle.`basename $FILE`.map > bundle.`basename $FILE`' ] | exorcist bundle.common.js.map > bundle.common.js",
     "build:production": "browserify src/browser.js tools/Tool*.js -g uglifyify --no-dedupe -p [ factor-bundle -o 'cat > bundle.`basename $FILE`' ] | cat > bundle.common.js",
+    "build:validator": "echo \"window.gltfValidator = require('gltf-validator');\" | browserify - > lib/gltf-validator.js",
     "package": "npm run package:windows && npm run package:mac && npm run package:linux",
     "package:windows": "electron-packager . gltf-viewer --overwrite --asar --platform=win32 --arch=ia32 --icon=assets/icons/glTF-Viewer.ico --out=dist --version-string.CompanyName=CE --version-string.FileDescription=CE --version-string.ProductName=\"glTF Viewer\"",
     "package:mac": "electron-packager . --overwrite --platform=darwin --arch=x64 --icon=assets/icons/glTF-Viewer.icns --out=dist",

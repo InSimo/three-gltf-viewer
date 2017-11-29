@@ -133,7 +133,7 @@ module.exports = class Viewer {
     // render the image
     this.renderer.render( this.scene, this.activeCamera );
     // immediatly capture image (this way preserveDrawingBuffer should not be required)
-    this.renderer.domElement.toBlob( (data) => {
+    var toBlobCB = (data) => {
       // reset renderer settings
       this.renderer.setPixelRatio( window.devicePixelRatio );
       // reset size and background
@@ -142,7 +142,16 @@ module.exports = class Viewer {
       this.updateEnvironment();
       this.render();
       cb(data);
-     });
+    };
+    if (this.renderer.domElement.toBlob !== undefined) {
+      this.renderer.domElement.toBlob(toBlobCB);
+    } else if (this.renderer.domElement.msToBlob !== undefined){
+      var blob = this.renderer.domElement.msToBlob();
+      toBlobCB(blob);
+    } else {
+      console.error('DOMCanvas.toBlob() not supported, no image preview generated');
+      toBlobCB(undefined);
+    }
   }
 
   resize () {

@@ -46,11 +46,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // make sure only one menu is visible at any given time
-  // we can't use radio buttons because we do need to be able to have none
-  // and we want the main menu buttons to behave like a toggle
-  let menuCheckBoxes = document.querySelectorAll('.menu-checkbox');
-  let menuLabels = document.querySelectorAll('.menu-label');
+  // Make sure only one menu is visible at any given time.
+  // We can't use radio buttons because we do need to be able to have none
+  // and we want the main menu buttons to behave like a toggle.
+  // Compatibility note: Edge does not seem to support iterating directly on
+  // the result of querySelectorAll, which is why Array.from was added.
+  let menuCheckBoxes = Array.from(document.querySelectorAll('.menu-checkbox'));
+  let menuLabels = Array.from(document.querySelectorAll('.menu-label'));
   for (let cb of menuCheckBoxes) {
     cb.addEventListener( 'change', function() {
       if(this.checked) {
@@ -155,7 +157,9 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(rootName);
     formData.append('name', rootName);
     formData.append('glb', glbBlob);
-    formData.append('image', imageBlob);
+    if (imageBlob) {
+      formData.append('image', imageBlob);
+    }
     formData.append('view', viewBlob);
     fetch('/upload', { method: 'POST', body : formData, redirect: 'manual'})
           .then(res=>{
@@ -463,7 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (hash.kiosk) {
-    const headerEls = document.querySelectorAll('header');
+    const headerEls = Array.from(document.querySelectorAll('header'));
     for (let headerEl of headerEls) {
       headerEl.style.display = 'none';
     }

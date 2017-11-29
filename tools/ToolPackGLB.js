@@ -181,15 +181,13 @@ class ToolPackGLB {
 
     // 3. now we have the output json, we need to concatenate it with the binary chunks and the header / separators
 
-    // json -> string
-    var jsonString = JSON.stringify(json);
-    // string -> Uint8Array
-    var jsonArray = new TextEncoder().encode(jsonString);
+    // json -> string -> Uint8Array
+    var jsonArray = gltfContent.getJSONArray(json);
 
-	const BINARY_EXTENSION_HEADER_MAGIC_UINT32 = 0x46546C67;
-	const BINARY_EXTENSION_HEADER_LENGTH = 12;
-	const BINARY_EXTENSION_CHUNK_HEADER_LENGTH = 8;
-	const BINARY_EXTENSION_CHUNK_TYPES = { JSON: 0x4E4F534A, BIN: 0x004E4942 };
+    const BINARY_EXTENSION_HEADER_MAGIC_UINT32 = 0x46546C67;
+    const BINARY_EXTENSION_HEADER_LENGTH = 12;
+    const BINARY_EXTENSION_CHUNK_HEADER_LENGTH = 8;
+    const BINARY_EXTENSION_CHUNK_TYPES = { JSON: 0x4E4F534A, BIN: 0x004E4942 };
 
     var jsonLength = jsonArray.length * jsonArray.BYTES_PER_ELEMENT;
     var jsonPadding = (4-(jsonLength % 4))%4;

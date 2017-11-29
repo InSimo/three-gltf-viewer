@@ -128,10 +128,8 @@ class ToolGLTFPipeline {
       return gltf;
     }).then((gltf) => {
       // 5. convert to json then to ArrayBuffer
-      // json -> string
-      var jsonString = JSON.stringify(gltf);
-      // string -> Uint8Array
-      var jsonArray = new TextEncoder().encode(jsonString);
+      // json -> string -> Uint8Array
+      var jsonArray = gltfContent.getJSONArray(gltf);
       return jsonArray;
     }).then((jsonArray) => {
       // Uint8Array -> ArrayBuffer

@@ -300,10 +300,9 @@ class ToolPackZIP {
     }
 
     gltfContent.gltf = gltf;
-    // json -> string (with whitespaces for readability, zip will compress it anyway)
-    var jsonString = JSON.stringify(gltf, undefined, 4);
-    // string -> Uint8Array
-    var jsonArray = new TextEncoder().encode(jsonString);
+    // json -> string -> Uint8Array (with whitespaces for readability, zip will compress it anyway)
+    var jsonArray = gltfContent.getJSONArray(gltf, 4);
+    // Uint8Array -> ArrayBuffer
     var jsonBuffer = jsonArray.buffer;
     gltfContent.setMainFileArrayBuffer(jsonBuffer);
 

@@ -118,11 +118,8 @@ class ToolPackBase64 {
     let mainFileExt = 'gltf';
 
     gltfContent.gltf = gltf;
-    // json -> string (with whitespaces for readability)
-    var jsonString = JSON.stringify(gltf, undefined, 4);
-    // string -> Uint8Array
-    var jsonArray = new TextEncoder().encode(jsonString);
-    var jsonBuffer = jsonArray.buffer;
+    // json -> string -> Uint8Array (with whitespaces for readability)
+    var jsonBuffer = gltfContent.getJSONArray(gltf, 4);
 
     // remove reference to all previously referenced files
     gltfContent.mainFilePath = undefined;

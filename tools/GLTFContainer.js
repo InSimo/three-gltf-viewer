@@ -607,6 +607,31 @@ module.exports = class GLTFContainer {
     return buffer;
   }
 
+  /** Helper method to convert a json object to a string
+   * @argument {string?} json - input json, the current gltf is used by default
+   * @argument {int?} space - optional, specify inserted white spaces
+   * @see JSON.stringify
+   * @returns {String} the input json as a string */
+  getJSONString(json, space) {
+    return JSON.stringify(json || this.gltf, undefined, space);
+  }
+
+  /** Helper method to convert a json object to a Uint8Array
+   * @argument {string?} json - input json, the current gltf is used by default
+   * @argument {int?} space - optional, specify inserted white spaces
+   * @see JSON.stringify, TextEncoder.encode, Buffer.from
+   * @returns {Uint8Array} returns the current gltf json as a Uint8Array */
+  getJSONArray(json, space) {
+    var jsonString = this.getJSONString(json, space);
+    // if we are in browsers that support TextEncoding, use it
+    if (window.TextEncoder !== undefined) {
+      return new TextEncoder().encode(jsonString);
+    } else {
+      // otherwise, either in node or with browserify, use Buffer
+      return Buffer.from(jsonString);
+    }
+  }
+
   addBuffer(uri, data, size) {
     const id = this.gltf.buffers.length;
     this.gltf.buffers.push({byteLength: size, uri: uri});

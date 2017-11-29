@@ -32,17 +32,14 @@ class ToolGLTFValidator {
       uri: gltfContent.info.name,
       externalResourceFunction: loadExternalResource
     };
-    return Promise.resolve(gltfContent.gltf)
-      .then((json) => {
+    return Promise.resolve()
+      .then(() => {
         if (gltfContent.containerData && gltfContent.info.container.mimetype == 'model/gltf-binary') {
           var array = new Uint8Array(gltfContent.containerData);
           return array;
         }
-        else if (json){
-          // json -> string
-          var jsonString = JSON.stringify(json);
-          // string -> Uint8Array
-          var jsonArray = new TextEncoder().encode(jsonString);
+        else if (gltfContent.gltf){
+          var jsonArray = gltfContent.getJSONArray();
           return jsonArray;
         }
         else {

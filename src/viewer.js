@@ -199,7 +199,7 @@ module.exports = class Viewer {
     this.setCamera(DEFAULT_CAMERA);
 
     this.controls.saveState();
-    object.name = rootName || 'glTF';
+    //object.name = rootName || 'glTF';
     this.scene.add(object);
     this.content = object;
 

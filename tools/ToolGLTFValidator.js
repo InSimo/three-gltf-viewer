@@ -21,7 +21,7 @@ class ToolGLTFValidator {
      * @returns {Promise} - Promise with Uint8Array data
      */
     var loadExternalResource = function(uri) {
-      var array = gltfContent.getFileArrayBuffer(uri);
+      var array = gltfContent.getFileArrayBuffer(decodeURIComponent(uri));
       if (array !== undefined) {
         return Promise.resolve(new Uint8Array(array));
       } else {

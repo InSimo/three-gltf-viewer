@@ -65,11 +65,13 @@ function sendIndex(req, res, json = {}) {
   if (json.canUpload === undefined) {
     json.canUpload = true;
   }
-  console.log(json);
+  //console.log(json);
   //res.sendFile(filePath);
   fs.readFile(filePath, function (err, content) {
     if (err) throw err;
     var rendered = mustache.render(content.toString(), json);
+    console.log('' + req.ip + ' - - [' + new Date().toISOString() + '] "' + req.method + ' ' + req.originalUrl + ' HTTP/' + req.httpVersion + '" 200 ' + rendered.length);
+    //console.log(req);
     res.type('text/html');
     res.end(rendered);
   });
@@ -123,7 +125,7 @@ app.post('/upload', upload.fields([{name:'glb', maxCount: 1},{name:'image', maxC
             promises.push(new Promise(function(resolve, reject) {
                 fs.createReadStream(fileIn).pipe(hasher).on('finish',function() {
                     var hash = hasher.read();
-                    console.log(upField,'hash is',hash);
+                    //console.log(upField,'hash is',hash);
                     hashes[upField] = hash;
                     resolve(hash);
                 })
@@ -148,11 +150,11 @@ app.post('/upload', upload.fields([{name:'glb', maxCount: 1},{name:'image', maxC
             index.image = base64web(new Buffer(hashes.image, 'hex').toString('base64'));
         }
         var indexJson = JSON.stringify(index);
-        console.log(indexJson);
+        //console.log(indexJson);
         var hasher = crypto.createHash('sha224').setEncoding('hex');
         hasher.update(indexJson);
         var hash = hasher.digest('hex');
-        console.log('Index hash is',hash);
+        //console.log('Index hash is',hash);
         var dir = mkdirpSync(['data',hashes.glb.substring(0,2),hashes.glb.substring(2,4),hashes.glb.substring(4)]);
         var glbOut = path.join(dir,'model.glb');
         if (!fs.existsSync(glbOut)) {
@@ -164,7 +166,7 @@ app.post('/upload', upload.fields([{name:'glb', maxCount: 1},{name:'image', maxC
         }
         if (imageIn !== undefined) {
             var imageOut = path.join(dir,hashes.image+'.png');
-            console.log('imageOut',imageOut);
+            //console.log('imageOut',imageOut);
             if (!fs.existsSync(imageOut)) {
                 console.log(imageIn, '->',imageOut);
                 fs.renameSync(imageIn, imageOut);
@@ -196,7 +198,7 @@ var reHashB64 = /^[a-zA-Z0-9_-]{38}$/;
 var reOption = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 
 app.get('/v(:hashb64)(.:hindexb64)?', function(req, res) {
-  console.log('QUERY:',req.query);
+  //console.log('QUERY:',req.query);
   hashb64 = req.params.hashb64;
   hindexb64 = req.params.hindexb64;
   if (!reHashB64.test(hashb64) ||
@@ -205,7 +207,7 @@ app.get('/v(:hashb64)(.:hindexb64)?', function(req, res) {
     return;
   }
   var hash = new Buffer(base64normal(hashb64),"base64").toString('hex');
-  console.log('Hash:', hash);
+  //console.log('Hash:', hash);
   var dir = path.join(rootDir,'data',hash.substring(0,2),hash.substring(2,4),hash.substring(4));
   if (!fs.existsSync(dir)) {
     res.status(404).send('Not found');

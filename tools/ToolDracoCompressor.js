@@ -22,7 +22,8 @@ class ToolDracoCompressor {
       },
       method: "edgebreaker",
       morphTargets: true,
-      trace: false
+      trace: false,
+      currentSpec: false
     };
     // custom GUI settings: (meant as arguments to dat.GUI, although apps are free to use something else)
     this.optionsGUI = {
@@ -112,7 +113,7 @@ class ToolDracoCompressor {
             var dracoData = gltfContent.getBufferViewArrayBuffer(compressedBufferViewId);
             if (dracoData !== undefined)
             {
-              res.info = this.inspector.inspectDraco(dracoData, options.trace);
+              res.info = this.inspector.inspectDraco(dracoData, options.currentSpec, options.trace);
             }
           }
           continue;

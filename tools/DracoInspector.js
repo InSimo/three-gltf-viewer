@@ -92,10 +92,10 @@ module.exports = class DracoInspector {
   constructor () {
   }
 
-  inspectDraco(dracoData, traceEnabled = false) {
+  inspectDraco(dracoData, currentSpec = false, traceEnabled = false) {
     var res = {}
     try {
-      this.parseDraco(dracoData, res, traceEnabled);
+      this.parseDraco(dracoData, res, currentSpec, traceEnabled);
     }
     catch(e) {
       console.error(e);
@@ -104,7 +104,7 @@ module.exports = class DracoInspector {
     return res;
   }
 
-  parseDraco(dracoData, res, traceEnabled = false) {
+  parseDraco(dracoData, res, currentSpec = false, traceEnabled = false) {
     const dracoView = new DataView(dracoData);
     var dracoOffset = 0;
     let dracoOffset0 = 0;
@@ -875,6 +875,8 @@ module.exports = class DracoInspector {
           MapCornerToVertex(new_corner + 2, prev);
           break;
         case DRACO.EBBitPattern.TOPOLOGY_L:
+        if (currentSpec === true)
+        {
           {
             corner_a = active_corner_stack_back();
             let opp_corner = new_corner + 1;
@@ -882,13 +884,40 @@ module.exports = class DracoInspector {
             active_corner_stack_set_back(new_corner);
           }
           check_topology_split = true; traceSet(check_topology_split, "check_topology_split", "NewActiveCornerReached");
-          vert = CornerToVert(curr_att_dec, Next(corner_a));  // ERROR IN SPEC
-          next = ++last_vert_added; traceSet(last_vert_added, "last_vert_added", "NewActiveCornerReached");  // ERROR IN SPEC
-          prev = CornerToVert(curr_att_dec, Previous(corner_a));  // ERROR IN SPEC
+          vert = CornerToVert(curr_att_dec, Previous(corner_a));
+          next = CornerToVert(curr_att_dec, Next(corner_a));
+          prev = ++last_vert_added; traceSet(last_vert_added, "last_vert_added", "NewActiveCornerReached");
           if (edgebreaker_traversal_type == DRACO.EBEncodingMethod.VALENCE_EDGEBREAKER) {
-            vertex_valences_[vert] += 1; traceSetI(vertex_valences_[vert], "vertex_valences_", vert, "NewActiveCornerReached"); // ERROR IN SPEC
-            vertex_valences_[next] += 2; traceSetI(vertex_valences_[next], "vertex_valences_", next, "NewActiveCornerReached"); // ERROR IN SPEC
-            vertex_valences_[prev] += 1; traceSetI(vertex_valences_[prev], "vertex_valences_", prev, "NewActiveCornerReached"); // ERROR IN SPEC
+            vertex_valences_[vert] += 1; traceSetI(vertex_valences_[vert], "vertex_valences_", vert, "NewActiveCornerReached");
+            vertex_valences_[next] += 1; traceSetI(vertex_valences_[next], "vertex_valences_", next, "NewActiveCornerReached");
+            vertex_valences_[prev] += 2; traceSetI(vertex_valences_[prev], "vertex_valences_", prev, "NewActiveCornerReached");
+          }
+
+          face_to_vertex[0].push(vert); traceActionI(vert, "push_back", "face_to_vertex[0]", face_to_vertex[0].length-1, "NewActiveCornerReached");
+          face_to_vertex[1].push(next); traceActionI(next, "push_back", "face_to_vertex[1]", face_to_vertex[1].length-1, "NewActiveCornerReached");
+          face_to_vertex[2].push(prev); traceActionI(prev, "push_back", "face_to_vertex[2]", face_to_vertex[2].length-1, "NewActiveCornerReached");
+
+          MapCornerToVertex(new_corner + 2, prev);
+          MapCornerToVertex(new_corner, vert);
+          MapCornerToVertex(new_corner + 1, next);
+          break;
+        }
+        else
+        {
+          {
+            corner_a = active_corner_stack_back();
+            let opp_corner = new_corner + 1;
+            SetOppositeCorners(opp_corner, corner_a);
+            active_corner_stack_set_back(new_corner);
+          }
+          check_topology_split = true; traceSet(check_topology_split, "check_topology_split", "NewActiveCornerReached");
+          vert = CornerToVert(curr_att_dec, Next(corner_a));  // CHANGED FROM SPEC
+          next = ++last_vert_added; traceSet(last_vert_added, "last_vert_added", "NewActiveCornerReached");  // CHANGED FROM SPEC
+          prev = CornerToVert(curr_att_dec, Previous(corner_a));  // CHANGED FROM SPEC
+          if (edgebreaker_traversal_type == DRACO.EBEncodingMethod.VALENCE_EDGEBREAKER) {
+            vertex_valences_[vert] += 1; traceSetI(vertex_valences_[vert], "vertex_valences_", vert, "NewActiveCornerReached"); // CHANGED FROM SPEC
+            vertex_valences_[next] += 2; traceSetI(vertex_valences_[next], "vertex_valences_", next, "NewActiveCornerReached"); // CHANGED FROM SPEC
+            vertex_valences_[prev] += 1; traceSetI(vertex_valences_[prev], "vertex_valences_", prev, "NewActiveCornerReached"); // CHANGED FROM SPEC
           }
 
           face_to_vertex[0].push(vert); traceActionI(vert, "push_back", "face_to_vertex[0]", face_to_vertex[0].length-1, "NewActiveCornerReached");
@@ -899,6 +928,7 @@ module.exports = class DracoInspector {
           MapCornerToVertex(new_corner + 1, next);
           MapCornerToVertex(new_corner + 2, prev);
           break;
+        }
         case DRACO.EBBitPattern.TOPOLOGY_E:
           active_corner_stack_push_back(new_corner);
           check_topology_split = true; traceSet(check_topology_split, "check_topology_split", "NewActiveCornerReached");

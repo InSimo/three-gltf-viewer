@@ -3,6 +3,8 @@ html, body {
   padding: 0;
   font-family: 'Raleway', sans-serif;
   background: #F5F5F5;
+  height: 100%;
+  overflow: hidden;
 }
 
 * {
@@ -13,8 +15,6 @@ html, body {
 body {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
 }
 
 .wrap {
@@ -243,6 +243,13 @@ body {
   position: absolute;
   top: 0;
   right: 0;
+  bottom: 0;
+  overflow: auto;
+  pointer-events: none;
+}
+
+.gui-wrap > .main {
+  pointer-events: all;
 }
 
 .item-tool {
@@ -491,15 +498,22 @@ a.gltf-author {
 
 .report {
   padding: 2em;
+  max-width: 860px;
 }
 
 .report h1 {
   margin-top: 0;
 }
 
+.report p,
+.report ul {
+  line-height: 1.5em;
+}
+
 .report-table {
   text-align: left;
   border-collapse: collapse;
+  width: 100%;
 }
 
 .report-table thead tr {
@@ -527,7 +541,7 @@ a.gltf-author {
   display: flex;
   position: absolute;
   bottom: 0;
-  right: 20px;
+  left: 20px;
   height: 30px;
   box-shadow: 0px 0px 5px 0 rgba(0, 0, 0, 0.25);
   background: #FFF;

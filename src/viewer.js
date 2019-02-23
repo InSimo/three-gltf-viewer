@@ -1,21 +1,44 @@
-/* global dat */
-
 const THREE = window.THREE = require('three');
 const Stats = require('../lib/stats.min');
+const dat = require('dat.gui');
 const environments = require('../assets/environment/index');
 const createVignetteBackground = require('three-vignette-background');
 
-
+require('three/examples/js/loaders/GLTFLoader');
+require('three/examples/js/loaders/DRACOLoader');
+require('three/examples/js/loaders/DDSLoader');
 require('three/examples/js/controls/OrbitControls');
+require('three/examples/js/loaders/RGBELoader');
+require('three/examples/js/loaders/HDRCubeTextureLoader');
+require('three/examples/js/pmrem/PMREMGenerator');
+require('three/examples/js/pmrem/PMREMCubeUVPacker');
+
+THREE.DRACOLoader.setDecoderPath( 'lib/draco/' );
 
 const DEFAULT_CAMERA = '[default]';
 
 const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
+// glTF texture types. `envMap` is deliberately omitted, as it's used internally
+// by the loader but not part of the glTF format.
+const MAP_NAMES = [
+  'map',
+  'aoMap',
+  'emissiveMap',
+  'glossinessMap',
+  'metalnessMap',
+  'normalMap',
+  'roughnessMap',
+  'specularMap',
+];
+
+const Preset = {ASSET_GENERATOR: 'assetgenerator'};
+
 module.exports = class Viewer {
 
   constructor (el, options) {
     this.el = el;
+    this.options = options;
 
     this.lights = [];
     this.content = null;
@@ -24,7 +47,9 @@ module.exports = class Viewer {
     this.gui = null;
 
     this.state = {
-      environment: environments[1].name,
+      environment: options.preset === Preset.ASSET_GENERATOR
+        ? 'Footprint Court (HDR)'
+        : environments[1].name,
       background: false,
       playbackSpeed: 1.0,
       actionStates: {},
@@ -39,8 +64,10 @@ module.exports = class Viewer {
       textureEncoding: 'sRGB',
       ambientIntensity: 0.3,
       ambientColor: 0xFFFFFF,
-      directIntensity: 0.8,
-      directColor: 0xFFFFFF
+      directIntensity: 0.8 * Math.PI, // TODO(#116)
+      directColor: 0xFFFFFF,
+      bgColor1: '#ffffff',
+      bgColor2: '#353535'
     };
 
     this.prevTime = 0;
@@ -54,13 +81,17 @@ module.exports = class Viewer {
     // support for Three.js Inspector chrome extension https://github.com/jeromeetienne/threejs-inspector
     window.scene = this.scene;
 
-    this.defaultCamera = new THREE.PerspectiveCamera( 60, el.clientWidth / el.clientHeight, 0.01, 1000 );
-    this.defaultCamera.name = DEFAULT_CAMERA;
+    const fov = options.preset === Preset.ASSET_GENERATOR
+      ? 0.8 * 180 / Math.PI
+      : 60;
+    this.defaultCamera = new THREE.PerspectiveCamera( fov, el.clientWidth / el.clientHeight, 0.01, 1000 );
     this.activeCamera = this.defaultCamera;
     this.scene.add( this.defaultCamera );
 
-    this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+    this.renderer = window.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+    this.renderer.physicallyCorrectLights = true;
     this.renderer.gammaOutput = true;
+    this.renderer.gammaFactor = 2.2;
     this.renderer.setClearColor( 0x000000, 0 );
     this.renderer.setPixelRatio( window.devicePixelRatio );
     this.renderer.setSize( el.clientWidth, el.clientHeight );
@@ -68,11 +99,12 @@ module.exports = class Viewer {
     this.controls = new THREE.OrbitControls( this.defaultCamera, this.renderer.domElement );
     this.controls.autoRotate = false;
     this.controls.autoRotateSpeed = -10;
+    this.controls.screenSpacePanning = true;
 
     this.background = createVignetteBackground({
       aspect: this.defaultCamera.aspect,
       grainScale: IS_IOS ? 0 : 0.001, // mattdesl/three-vignette-background#1
-      colors: ['#ffffff', '#353535']
+      colors: [this.state.bgColor1, this.state.bgColor2]
     });
     this.background.name = '[Vignette]';
     this.background.renderOrder = -100; // make sure the background is always rendered first
@@ -167,12 +199,51 @@ module.exports = class Viewer {
     }
   }
 
+  const baseURL = THREE.LoaderUtils.extractUrlBase(url);
+
   loadContent ( content, rootName = '', initState = {} ) {
     return new Promise((resolve, reject) => {
-      const scene = content.scene || content.scenes[0];
-      const clips = content.animations || [];
-      this.setContent(scene, clips, rootName, initState);
-      resolve(content);
+
+      const manager = new THREE.LoadingManager();
+
+      // Intercept and override relative URLs.
+      manager.setURLModifier((url, path) => {
+
+        const normalizedURL = rootPath + url
+          .replace(baseURL, '')
+          .replace(/^(\.?\/)/, '');
+
+        if (assetMap.has(normalizedURL)) {
+          const blob = assetMap.get(normalizedURL);
+          const blobURL = URL.createObjectURL(blob);
+          blobURLs.push(blobURL);
+          return blobURL;
+        }
+
+        return (path || '') + url;
+
+      });
+
+      const loader = new THREE.GLTFLoader(manager);
+      loader.setCrossOrigin('anonymous');
+      loader.setDRACOLoader( new THREE.DRACOLoader() );
+      const blobURLs = [];
+
+      loader.load(url, (gltf) => {
+
+        const scene = gltf.scene || gltf.scenes[0];
+        const clips = gltf.animations || [];
+        this.setContent(scene, clips, rootName, initState);
+
+        blobURLs.forEach(URL.revokeObjectURL);
+
+        // See: https://github.com/google/draco/issues/349
+        // THREE.DRACOLoader.releaseDecoderModule();
+
+        resolve(gltf);
+
+      }, undefined, reject);
+
     });
   }
 
@@ -187,8 +258,8 @@ module.exports = class Viewer {
 
     object.updateMatrixWorld();
     const box = new THREE.Box3().setFromObject(object);
-    const size = box.getSize().length();
-    const center = box.getCenter();
+    const size = box.getSize(new THREE.Vector3()).length();
+    const center = box.getCenter(new THREE.Vector3());
 
     this.controls.reset();
 
@@ -196,14 +267,24 @@ module.exports = class Viewer {
     object.position.y += (object.position.y - center.y);
     object.position.z += (object.position.z - center.z);
     this.controls.maxDistance = size * 10;
-    this.defaultCamera.position.copy(center);
-    this.defaultCamera.position.x += size / 2.0;
-    this.defaultCamera.position.y += size / 5.0;
-    this.defaultCamera.position.z += size / 2.0;
     this.defaultCamera.near = size / 100;
     this.defaultCamera.far = size * 100;
     this.defaultCamera.updateProjectionMatrix();
-    this.defaultCamera.lookAt(center);
+
+    if (this.options.cameraPosition) {
+
+      this.defaultCamera.position.fromArray( this.options.cameraPosition );
+      this.defaultCamera.lookAt( new THREE.Vector3() );
+
+    } else {
+
+      this.defaultCamera.position.copy(center);
+      this.defaultCamera.position.x += size / 2.0;
+      this.defaultCamera.position.y += size / 5.0;
+      this.defaultCamera.position.z += size / 2.0;
+      this.defaultCamera.lookAt(center);
+
+    }
 
     this.setCamera(DEFAULT_CAMERA);
 
@@ -267,6 +348,10 @@ module.exports = class Viewer {
       this.mixer = null;
     }
 
+    clips.forEach((clip) => {
+      if (clip.validate()) clip.optimize();
+    });
+
     this.clips = clips;
     if (!clips.length) return;
 
@@ -301,13 +386,10 @@ module.exports = class Viewer {
     const encoding = this.state.textureEncoding === 'sRGB'
       ? THREE.sRGBEncoding
       : THREE.LinearEncoding;
-    this.content.traverse((node) => {
-      if (node.isMesh) {
-        const material = node.material;
-        if (material.map) material.map.encoding = encoding;
-        if (material.emissiveMap) material.emissiveMap.encoding = encoding;
-        if (material.map || material.emissiveMap) material.needsUpdate = true;
-      }
+    traverseMaterials(this.content, (material) => {
+      if (material.map) material.map.encoding = encoding;
+      if (material.emissiveMap) material.emissiveMap.encoding = encoding;
+      if (material.map || material.emissiveMap) material.needsUpdate = true;
     });
   }
 
@@ -323,7 +405,7 @@ module.exports = class Viewer {
 
     this.renderer.toneMappingExposure = state.exposure;
 
-    if (lights.length) {
+    if (lights.length === 2) {
       lights[0].intensity = state.ambientIntensity;
       lights[0].color.setHex(state.ambientColor);
       lights[1].intensity = state.directIntensity;
@@ -333,6 +415,14 @@ module.exports = class Viewer {
 
   addLights () {
     const state = this.state;
+
+    if (this.options.preset === Preset.ASSET_GENERATOR) {
+      const hemiLight = new THREE.HemisphereLight();
+      hemiLight.name = 'hemi_light';
+      this.scene.add(hemiLight);
+      this.lights.push(hemiLight);
+      return;
+    }
 
     const light1  = new THREE.AmbientLight(state.ambientColor, state.ambientIntensity);
     light1.name = 'ambient_light';
@@ -348,7 +438,7 @@ module.exports = class Viewer {
 
   removeLights () {
 
-    this.lights.forEach((light) => this.defaultCamera.remove(light));
+    this.lights.forEach((light) => light.parent.remove(light));
     this.lights.length = 0;
 
   }
@@ -356,32 +446,68 @@ module.exports = class Viewer {
   updateEnvironment () {
 
     const environment = environments.filter((entry) => entry.name === this.state.environment)[0];
-    const {path, format} = environment;
 
-    let envMap = null;
-    if (path) {
-        envMap = new THREE.CubeTextureLoader().load([
-          path + 'posx' + format, path + 'negx' + format,
-          path + 'posy' + format, path + 'negy' + format,
-          path + 'posz' + format, path + 'negz' + format
-        ]);
-        envMap.format = THREE.RGBFormat;
-    }
+    this.getCubeMapTexture( environment ).then(( { envMap, cubeMap } ) => {
 
-    if ((!this.state.background) && this.activeCamera === this.defaultCamera) {
-      this.scene.add(this.background);
-    } else {
-      this.scene.remove(this.background);
-    }
-
-    this.content.traverse((node) => {
-      if (node.material && 'envMap' in node.material) {
-        node.material.envMap = envMap;
-        node.material.needsUpdate = true;
+      if ((!envMap || !this.state.background) && this.activeCamera === this.defaultCamera) {
+        this.scene.add(this.background);
+      } else {
+        this.scene.remove(this.background);
       }
+
+      traverseMaterials(this.content, (material) => {
+        if (material.isMeshStandardMaterial || material.isGLTFSpecularGlossinessMaterial) {
+          material.envMap = envMap;
+          material.needsUpdate = true;
+        }
+      });
+
+      this.scene.background = this.state.background ? cubeMap : null;
+
     });
 
-    this.scene.background = this.state.background ? envMap : null;
+  }
+
+  getCubeMapTexture (environment) {
+    const {path, format} = environment;
+
+    // no envmap
+    if ( ! path ) return Promise.resolve({envMap: null, cubeMap: null});
+
+    const cubeMapURLs = [
+      path + 'posx' + format, path + 'negx' + format,
+      path + 'posy' + format, path + 'negy' + format,
+      path + 'posz' + format, path + 'negz' + format
+    ];
+
+    // hdr
+    if ( format === '.hdr' ) {
+
+      return new Promise((resolve) => {
+
+        new THREE.HDRCubeTextureLoader().load( THREE.UnsignedByteType, cubeMapURLs, ( hdrCubeMap ) => {
+
+          var pmremGenerator = new THREE.PMREMGenerator( hdrCubeMap );
+          pmremGenerator.update( this.renderer );
+
+          var pmremCubeUVPacker = new THREE.PMREMCubeUVPacker( pmremGenerator.cubeLods );
+          pmremCubeUVPacker.update( this.renderer );
+
+          resolve( {
+            envMap: pmremCubeUVPacker.CubeUVRenderTarget.texture,
+            cubeMap: hdrCubeMap
+          } );
+
+        } );
+
+      });
+
+    }
+
+    // standard
+    const envMap = new THREE.CubeTextureLoader().load(cubeMapURLs);
+    envMap.format = THREE.RGBFormat;
+    return Promise.resolve( { envMap, cubeMap: envMap } );
 
   }
 
@@ -390,10 +516,11 @@ module.exports = class Viewer {
       this.skeletonHelpers.forEach((helper) => this.scene.remove(helper));
     }
 
+    traverseMaterials(this.content, (material) => {
+      material.wireframe = this.state.wireframe;
+    });
+
     this.content.traverse((node) => {
-      if (node.isMesh) {
-        node.material.wireframe = this.state.wireframe;
-      }
       if (node.isMesh && node.skeleton && this.state.skeleton) {
         const helper = new THREE.SkeletonHelper(node.skeleton.bones[0].parent);
         helper.material.linewidth = 3;
@@ -419,9 +546,13 @@ module.exports = class Viewer {
     }
   }
 
+  updateBackground () {
+    this.background.style({colors: [this.state.bgColor1, this.state.bgColor2]});
+  }
+
   addGUI () {
 
-    const gui = this.gui = new dat.GUI({autoPlace: false, width: 260});
+    const gui = this.gui = new dat.GUI({autoPlace: false, width: 260, hideable: true});
 
     // Display controls.
     const dispFolder = gui.addFolder('Display');
@@ -434,6 +565,11 @@ module.exports = class Viewer {
     this.gridCtrl = dispFolder.add(this.state, 'grid');
     this.gridCtrl.onChange(() => this.updateDisplay());
     this.autoRotateCtrl = dispFolder.add(this.controls, 'autoRotate');
+    this.screenSpacePanningCtrl = dispFolder.add(this.controls, 'screenSpacePanning');
+    this.bgColor1Ctrl = dispFolder.addColor(this.state, 'bgColor1');
+    this.bgColor2Ctrl = dispFolder.addColor(this.state, 'bgColor2');
+    this.bgColor1Ctrl.onChange(() => this.updateBackground());
+    this.bgColor2Ctrl.onChange(() => this.updateBackground());
 
     // Lighting controls.
     const lightFolder = gui.addFolder('Lighting');
@@ -441,8 +577,8 @@ module.exports = class Viewer {
     this.encodingCtrl.onChange(() => this.updateTextureEncoding());
     this.gammaOutputCtrl = lightFolder.add(this.renderer, 'gammaOutput');
     this.gammaOutputCtrl.onChange(() => {
-      this.content.traverse((node) => {
-        if (node.isMesh) node.material.needsUpdate = true;
+      traverseMaterials(this.content, (material) => {
+        material.needsUpdate = true;
       });
     });
     this.envMapCtrl = lightFolder.add(this.state, 'environment', environments.map((env) => env.name));
@@ -452,7 +588,7 @@ module.exports = class Viewer {
       lightFolder.add(this.state, 'addLights').listen(),
       lightFolder.add(this.state, 'ambientIntensity', 0, 2).listen(),
       lightFolder.addColor(this.state, 'ambientColor').listen(),
-      lightFolder.add(this.state, 'directIntensity', 0, 2).listen(),
+      lightFolder.add(this.state, 'directIntensity', 0, 4).listen(), // TODO(#116)
       lightFolder.addColor(this.state, 'directColor').listen()
     ].forEach((ctrl) => ctrl.onChange(() => this.updateLights()));
 
@@ -542,7 +678,10 @@ module.exports = class Viewer {
           this.morphCtrls.push(nameCtrl);
         }
         for (let i = 0; i < mesh.morphTargetInfluences.length; i++) {
-          const ctrl = this.morphFolder.add(mesh.morphTargetInfluences, i, 0, 1).listen();
+          const ctrl = this.morphFolder.add(mesh.morphTargetInfluences, i, 0, 1, 0.01).listen();
+          Object.keys(mesh.morphTargetDictionary).forEach((key) => {
+            if (key && mesh.morphTargetDictionary[key] === i) ctrl.name(key);
+          });
           this.morphCtrls.push(ctrl);
         }
       });
@@ -576,6 +715,8 @@ module.exports = class Viewer {
 
   clear () {
 
+    if ( !this.content ) return;
+
     this.scene.remove( this.content );
     this.state.actionStates = {};
   }
@@ -594,6 +735,26 @@ module.exports = class Viewer {
 
   updateGUISceneInformation (info) {
     this.updateGUIInfoFolder(info, this.infoGUI );
+    // dispose geometry
+    this.content.traverse((node) => {
+
+      if ( !node.isMesh ) return;
+
+      node.geometry.dispose();
+
+    } );
+
+    // dispose textures
+    traverseMaterials( this.content, (material) => {
+
+      MAP_NAMES.forEach( (map) => {
+
+        if (material[ map ]) material[ map ].dispose();
+
+      } );
+
+    } );
+
   }
 
   updateGUIInfoFolder (info, gui) {
@@ -673,3 +834,13 @@ module.exports = class Viewer {
     }
   }
 };
+
+function traverseMaterials (object, callback) {
+  object.traverse((node) => {
+    if (!node.isMesh) return;
+    const materials = Array.isArray(node.material)
+      ? node.material
+      : [node.material];
+    materials.forEach(callback);
+  });
+}

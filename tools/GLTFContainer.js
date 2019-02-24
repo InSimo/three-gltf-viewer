@@ -109,7 +109,7 @@ module.exports = class GLTFContainer {
    */
   loadSingleFile(uri, name=undefined, data=undefined) {
     this.clear();
-    this.containerFileUri = uri || data.name || name;
+    this.containerFileUri = uri || (data && data.name) || name;
     this.name = name || this.getNameFromUri(uri);
     var promise = this.promiseArrayBuffer(data || uri);
     return promise.then(buffer => {

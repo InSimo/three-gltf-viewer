@@ -1,7 +1,6 @@
 const THREE = require('three');
-
-require('../lib/draco/DRACOLoader');
-require('../lib/GLTFLoader');
+require('three/examples/js/loaders/GLTFLoader');
+require('three/examples/js/loaders/DRACOLoader');
 require('three/examples/js/loaders/ColladaLoader');
 require('three/examples/js/loaders/FBXLoader');
 require('three/examples/js/loaders/OBJLoader');
@@ -75,7 +74,8 @@ module.exports = class Loader {
 
       if (loader instanceof THREE.GLTFLoader) {
         console.log('Enabling Draco support');
-        loader.setDRACOLoader( new THREE.DRACOLoader( 'lib/draco/', {type: 'js'} ) );
+        THREE.DRACOLoader.setDecoderPath( 'lib/draco/' );
+        loader.setDRACOLoader( new THREE.DRACOLoader( manager ) );
       }
 
       const blobURLs = [];

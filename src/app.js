@@ -8,10 +8,9 @@ const SimpleDropzone = require('simple-dropzone');
 const queryString = require('query-string');
 const GLTFContainer = require('../tools/GLTFContainer');
 const BaseToolManager = require('../tools/BaseToolManager');
-const queryString = require('query-string');
-//const JSZip = require('jszip');
 const FileSaver = require('file-saver');
 const renderjson = require('renderjson');
+const dat = require('dat.gui');
 
 if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
   console.error('The File APIs are not fully supported in this browser.');
@@ -70,7 +69,7 @@ class App {
     }
 
     if (options.model) {
-      this.load(options.model, '', new Map());
+      this.load(options.model, new Map(), window.loadIndex || {});
     }
   }
 
@@ -79,7 +78,7 @@ class App {
    */
   createDropzone () {
     const dropCtrl = new SimpleDropzone(this.dropEl, this.inputEl);
-    dropCtrl.on('drop', ({files}) => this.load(null, files)); // TODO: get container zip file
+    dropCtrl.on('drop', ({files}) => this.load(undefined, files)); // TODO: get container zip file
     dropCtrl.on('dropstart', () => this.showSpinner());
     dropCtrl.on('droperror', () => this.hideSpinner());
   }
@@ -154,11 +153,11 @@ class App {
       fileMap.forEach((file, path) => {
         var name = file.name;
         var extension = name.lastIndexOf('.') == -1 ? '' : name.slice(name.lastIndexOf('.')+1).toLowerCase();
-        if (extension in loader.loaders && loader.loaders[extension].priority > rootFilePriority) {
+        if (extension in this.loader.loaders && this.loader.loaders[extension].priority > rootFilePriority) {
           rootFile = file;
           rootFilePath = path;
           rootFileExt = extension;
-          rootFilePriority = loader.loaders[extension].priority;
+          rootFilePriority = this.loader.loaders[extension].priority;
         }
       });
     }
@@ -166,7 +165,7 @@ class App {
     if (!rootFile) {
       var error = 'No supported asset found.';
       console.error(error);
-      onToolError({tool:{title:''}, error:error });
+      this.onToolError({tool:{title:''}, error:error });
       return;
     }
 
@@ -240,7 +239,7 @@ class App {
       }
     };
 
-    if (!hash.kiosk) {
+    if (!this.options.kiosk) {
       // Disabled as gltf-validator is integrated as part of the tools in this branch
       //validationCtrl.validate(fileURL, rootPath, fileMap);
     }
@@ -250,7 +249,8 @@ class App {
     this.showSpinner();
     this.loader.load(fileURL, rootPath, fileMap, this.rootName, rootFileExt || 'gltf')
       .then((content) => {
-        return this.viewer.loadContent(content, this.rootName, params.view || {});
+        this.viewer.loadContent(content, this.rootName, params.view || {});
+        return content;
       })
       .then(postViewerLoad)
       .then(postGLTFLoad)
@@ -290,15 +290,15 @@ class App {
     this.spinnerEl.style.display = 'none';
   }
 
-  setupMenus() {
+  setupMenus () {
 
     this.downloadBtnEl = document.querySelector('#download-btn');
-    this.downloadBtnEl.addEventListener('click', () => this.download());
     this.closeBtnEl = document.querySelector('#close-btn');
-    this.closeBtnEl.addEventListener('click', () => this.close());
     this.shareBtnEl = document.querySelector('#share-btn');
     this.shareSizeEl = document.querySelector('#share-btn .size');
-    this.shareBtnEl.addEventListener('click', () => this.share());
+    this.downloadBtnEl.addEventListener('click', this.download.bind(this));
+    this.closeBtnEl.addEventListener('click', this.close.bind(this));
+    this.shareBtnEl.addEventListener('click', this.share.bind(this));
 
     this.toolsMenuElement = document.querySelector('#tools-menu');
     this.toolsMenuElementChild0 = this.toolsMenuElement.children[0];
@@ -353,7 +353,7 @@ class App {
     });
   }
 
-  setupLoaders() {
+  setupLoaders () {
     // Show the list of supported extensions
     if (this.placeholderEl) {
       if (!this.loader) {
@@ -364,21 +364,21 @@ class App {
         var text = "Experimental importing of files in ";
         text += extlist.join(', ');
         text += ' formats';
-        p = document.createElement('p');
+        var p = document.createElement('p');
         p.appendChild(document.createTextNode(text));
         this.placeholderEl.appendChild(p);
       }
     }
   }
 
-  download() {
+  download () {
     if (this.gltfContent.containerData) {
       var glbBlob = new Blob([this.gltfContent.containerData], { type: this.gltfContent.info.container.mimetype || 'model/gltf-binary' });
       FileSaver.saveAs(glbBlob, (this.gltfContent.name||'output')+'.'+(this.gltfContent.info.container.fileextension||'glb'));
     }
   }
 
-  close() {
+  close () {
     if (!this.viewer) return;
     this.viewer.clear();
     this.gltfContent.clear();
@@ -398,8 +398,8 @@ class App {
     this.shareBtnEl.style.display = 'none';
   }
 
-  share() {
-    this.viewer.renderImage(1024,512,function(imageBlob) {
+  share () {
+    this.viewer.renderImage(1024,512,(imageBlob) => {
       var formData = new FormData();
       var glbBlob = new Blob([this.gltfContent.containerData], { type: this.gltfContent.info.container.mimetype || 'model/gltf-binary' });
       var viewState = this.viewer.getState();
@@ -508,7 +508,7 @@ class App {
   onToolDone ({tool, result}) {
     this.hideSpinner();
     console.log(result);
-    if (result && this.panelCheckBox !== undefined && !this.kioskCheckBox.checked) {
+    if (result && this.panelCheckBox !== undefined && !this.panelCheckBox.checked) {
       this.panelCheckBox.checked = true;
     }
     if (this.panelContentElement !== undefined) {
@@ -570,8 +570,8 @@ class App {
   };
 
   scheduleResize() {
-    if (viewer) {
-      setTimeout(viewer.resize.bind(viewer), 0);
+    if (this.viewer) {
+      setTimeout(this.viewer.resize.bind(this.viewer), 0);
     }
   }
 
@@ -584,6 +584,6 @@ class App {
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  const app = new App(document.body, location);
+  const app = window.app = new App(document.body, location);
 
 });

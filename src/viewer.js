@@ -4,16 +4,12 @@ const dat = require('dat.gui');
 const environments = require('../assets/environment/index');
 const createVignetteBackground = require('three-vignette-background');
 
-require('three/examples/js/loaders/GLTFLoader');
-require('three/examples/js/loaders/DRACOLoader');
 require('three/examples/js/loaders/DDSLoader');
 require('three/examples/js/controls/OrbitControls');
 require('three/examples/js/loaders/RGBELoader');
 require('three/examples/js/loaders/HDRCubeTextureLoader');
 require('three/examples/js/pmrem/PMREMGenerator');
 require('three/examples/js/pmrem/PMREMCubeUVPacker');
-
-THREE.DRACOLoader.setDecoderPath( 'lib/draco/' );
 
 const DEFAULT_CAMERA = '[default]';
 
@@ -199,52 +195,11 @@ module.exports = class Viewer {
     }
   }
 
-  const baseURL = THREE.LoaderUtils.extractUrlBase(url);
+  loadContent ( gltf, rootName = '', initState = {} ) {
 
-  loadContent ( content, rootName = '', initState = {} ) {
-    return new Promise((resolve, reject) => {
-
-      const manager = new THREE.LoadingManager();
-
-      // Intercept and override relative URLs.
-      manager.setURLModifier((url, path) => {
-
-        const normalizedURL = rootPath + url
-          .replace(baseURL, '')
-          .replace(/^(\.?\/)/, '');
-
-        if (assetMap.has(normalizedURL)) {
-          const blob = assetMap.get(normalizedURL);
-          const blobURL = URL.createObjectURL(blob);
-          blobURLs.push(blobURL);
-          return blobURL;
-        }
-
-        return (path || '') + url;
-
-      });
-
-      const loader = new THREE.GLTFLoader(manager);
-      loader.setCrossOrigin('anonymous');
-      loader.setDRACOLoader( new THREE.DRACOLoader() );
-      const blobURLs = [];
-
-      loader.load(url, (gltf) => {
-
-        const scene = gltf.scene || gltf.scenes[0];
-        const clips = gltf.animations || [];
-        this.setContent(scene, clips, rootName, initState);
-
-        blobURLs.forEach(URL.revokeObjectURL);
-
-        // See: https://github.com/google/draco/issues/349
-        // THREE.DRACOLoader.releaseDecoderModule();
-
-        resolve(gltf);
-
-      }, undefined, reject);
-
-    });
+    const scene = gltf.scene || gltf.scenes[0];
+    const clips = gltf.animations || [];
+    this.setContent(scene, clips, rootName, initState);
   }
 
   /**
@@ -326,7 +281,7 @@ module.exports = class Viewer {
     window.content = this.content;
 
     console.info('[glTF Viewer] THREE.Scene exported as `window.content`.');
-    this.printGraph(this.content);
+    //this.printGraph(this.content);
 
   }
 

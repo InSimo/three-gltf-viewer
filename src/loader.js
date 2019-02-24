@@ -1,4 +1,21 @@
 const THREE = require('three');
+
+// For FBXLoader: emulate https://github.com/imaya/zlib.js with https://github.com/juliangruber/zipjs-browserify
+const zip = require('zipjs-browserify/vendor/inflate.js');
+const Zlib = {}
+Zlib.Inflate = class {
+  constructor(inputArray) {
+    this.input = inputArray;
+    this.inflater = new zip.Inflater();
+  }
+  decompress() {
+    let data = this.inflater.append(this.input.slice(2,-4)); // skip the 2 bytes header and the 4 bytes checksum
+    this.inflater.flush();
+    return data;
+  }
+}
+window.Zlib = Zlib;
+
 require('three/examples/js/loaders/GLTFLoader');
 require('three/examples/js/loaders/DRACOLoader');
 require('three/examples/js/loaders/ColladaLoader');

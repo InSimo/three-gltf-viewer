@@ -78,7 +78,7 @@ class App {
    */
   createDropzone () {
     const dropCtrl = new SimpleDropzone(this.dropEl, this.inputEl);
-    dropCtrl.on('drop', ({files}) => this.load(undefined, files)); // TODO: get container zip file
+    dropCtrl.on('drop', ({files, archive}) => this.load(archive, files));
     dropCtrl.on('dropstart', () => this.showSpinner());
     dropCtrl.on('droperror', () => this.hideSpinner());
   }
